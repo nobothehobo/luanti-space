@@ -1,8 +1,16 @@
 #!/usr/bin/env python3
-"""Reproducible original geometric textures. Requires Pillow; no external artwork."""
+"""Reproducible original geometric textures. Requires Pillow/optipng; no external artwork."""
+import argparse
 from pathlib import Path
+import shutil
+import subprocess
 from PIL import Image, ImageDraw
 
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument("--optipng", default=shutil.which("optipng"))
+args = parser.parse_args()
+if not args.optipng:
+    parser.error("install optipng or pass --optipng /path/to/optipng (upstream asset requirement)")
 destination = Path(__file__).resolve().parents[2] / "games/luanti_space/mods/space_core/textures"
 destination.mkdir(parents=True, exist_ok=True)
 colors = {
@@ -55,3 +63,6 @@ for name, back in (("space_pilot.png", False), ("space_pilot_back.png", True)):
     draw.rectangle((10, 19, 21, 32), fill="#536b7b" if back else "#659f99")
     draw.rectangle((13, 22, 18, 26), fill="#d7fff2")
     image.save(destination / name, optimize=True)
+
+subprocess.run([args.optipng, "-o7", "-zm1-9", "-nc", "-strip", "all", "-clobber",
+    *map(str, sorted(destination.glob("space_*.png")))], check=True, capture_output=True)

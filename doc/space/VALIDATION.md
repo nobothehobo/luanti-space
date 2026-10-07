@@ -30,6 +30,8 @@ extracted in the test workspace; no engine source fixes were necessary.
 - All eight original PNGs decode correctly. Installable game ZIP includes
   `luanti_space/game.conf`, all textures/source, separate control profile and
   installation notes; ZIP integrity check passed.
+- Original PNGs losslessly optimized with upstream optipng flags; pixel content
+  is preserved. The generator now applies the same compression automatically.
 - Python compile checks, launcher help, packaging, and `git diff --check`.
 
 The final native replication/save run passed both new-world and reload phases.
