@@ -1,0 +1,81 @@
+name: Space browser — test and publish
+on:
+  push:
+    branches: [master, codex/space-flight-foundation]
+    paths:
+      [
+        "space/web/**",
+        "space/tools/package_web.py",
+        "games/luanti_space/mods/space_core/world_spec.json",
+        ".github/workflows/space-web.yml",
+      ]
+  pull_request:
+    paths:
+      [
+        "space/web/**",
+        "space/tools/package_web.py",
+        "games/luanti_space/mods/space_core/world_spec.json",
+        ".github/workflows/space-web.yml",
+      ]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: space-web-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Test local authority and save schema
+        run: node --test space/web/tests/unit.test.mjs
+      - name: Package self-contained browser game
+        run: python3 space/tools/package_web.py
+      - name: Install browser test dependencies only
+        run: |
+          npm install --prefix build/web-tests --no-save playwright@1.62.1
+          build/web-tests/node_modules/.bin/playwright install --with-deps chromium webkit
+      - name: Desktop, phone-size and WebKit browser flows
+        env:
+          SPACE_PLAYWRIGHT_PATH: ${{ github.workspace }}/build/web-tests/node_modules/playwright
+          SPACE_TEST_WEBKIT: "1"
+        run: node space/web/tests/browser.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: space-browser-evidence
+          path: build/space-web-evidence/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: space-browser-build
+          path: build/space-web/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: space-browser-download
+          path: build/space-browser.zip
+  publish:
+    needs: test
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    concurrency:
+      group: space-web-publish
+      cancel-in-progress: false
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: space-browser-build
+          path: public
+      - name: Publish tested files to GitHub Pages branch
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: public
+          publish_branch: gh-pages
+          commit_message: "Publish tested Space browser build"

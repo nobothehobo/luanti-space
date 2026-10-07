@@ -1,0 +1,9 @@
+{
+  "name": "Luanti Space — Flight Garden",
+  "short_name": "Space Garden",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#102330",
+  "theme_color": "#102330"
+}

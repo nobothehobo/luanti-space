@@ -1,13 +1,12 @@
 -- SPDX-License-Identifier: LGPL-2.1-or-later
 -- Small deterministic flight garden. Chunk generation never rewrites saved builds.
 space.world = {}
-local islands = {
-	{x = 0, y = 30, z = 0, radius = 14, depth = 12},
-	{x = 42, y = 52, z = 18, radius = 12, depth = 16},
-	{x = -38, y = 65, z = 36, radius = 10, depth = 18},
-	{x = 16, y = 92, z = -40, radius = 16, depth = 22},
-	{x = -48, y = 18, z = -36, radius = 17, depth = 14},
-}
+local spec_file = assert(io.open(core.get_modpath(core.get_current_modname()) .. "/world_spec.json", "r"))
+local spec_data = spec_file:read("*a")
+spec_file:close()
+local spec = assert(core.parse_json(spec_data), "Invalid Space world specification")
+assert(spec.generator == 1, "Unsupported Space world generator")
+local islands = spec.islands
 function space.world.material_at(x, y, z)
 	for index, island in ipairs(islands) do
 		local depth = island.y - y

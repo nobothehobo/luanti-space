@@ -37,3 +37,12 @@ or a shipping standalone executable.
 eight original textures and asset licensing; `space/config/client.conf` for
 consistent controls on local and remote clients. No engine source edits needed
 for this foundation. Read the game guide for launch steps and remaining caveats.
+
+## Interim phone-first browser track
+
+The user requested programming, testing and playing entirely from iPhone/iPad.
+`space/web` is an isolated browser edition with GitHub Actions tests and Pages
+publishing; see `space/web/README.md`. This does not replace the required native
+iOS port or demonstrate native/browser cross-play. Shared `world_spec.json`
+prevents diverging initial terrain, but physics/rendering remain distinct.
+Prioritize real-device evaluation of this surface before speculative expansion.

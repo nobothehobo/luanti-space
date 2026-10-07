@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1,viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#102330" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
+    <meta
+      name="description"
+      content="An original floating-island flight and building garden. Play in your browser."
+    />
+    <title>Luanti Space · Flight Garden</title>
+    <link rel="stylesheet" href="style.css" />
+    <link rel="manifest" href="manifest.webmanifest" />
+  </head>
+  <body>
+    <canvas id="view" aria-label="Flight garden 3D world"></canvas>
+    <header>
+      <div>
+        <span class="eyebrow">LUANTI SPACE / BROWSER EDITION</span
+        ><strong>Flight Garden</strong>
+      </div>
+      <button id="menu" aria-label="Open garden menu">
+        Menu <span>☰</span>
+      </button>
+    </header>
+    <div id="hud">
+      <span id="speed">HOVER · 0 m/s</span
+      ><span id="save-status">Starting garden…</span>
+    </div>
+    <div id="reticle" aria-hidden="true">+</div>
+    <div id="target-status">Aim at an island to build</div>
+    <div id="toast" role="status"></div>
+    <footer>
+      <div id="palette" aria-label="Material palette"></div>
+      <button id="rotate">Rotate <span id="rotation">0°</span></button
+      ><button id="undo">Undo</button><button id="redo">Redo</button>
+    </footer>
+    <div id="touch-controls">
+      <div id="stick" aria-label="Movement joystick"><span></span></div>
+      <div class="vertical">
+        <button data-hold="ascend" aria-label="Ascend">↑</button
+        ><button data-hold="descend" aria-label="Descend">↓</button
+        ><button data-hold="boost">Boost</button>
+      </div>
+      <div class="build-controls">
+        <button data-hold="remove">Remove</button
+        ><button data-hold="place" class="primary">Build +</button>
+      </div>
+    </div>
+    <dialog id="panel" open>
+      <span class="eyebrow">A LITTLE ROOM TO BREATHE</span>
+      <h1>Your garden,<br />above the clouds.</h1>
+      <p>
+        Fly freely between floating islands. Shape something of your own, one
+        block at a time.
+      </p>
+      <p class="note">
+        Browser-only solo world · Not yet connected to native Luanti servers
+      </p>
+      <button id="play" class="primary wide" disabled>
+        Preparing your garden…
+      </button>
+      <details>
+        <summary>Controls &amp; settings</summary>
+        <p>
+          Touch: left stick to move, swipe the world to look. Hold arrows to
+          rise/fall. Aim the center crosshair; hold Build or Remove.
+        </p>
+        <p>
+          Keyboard: WASD · Space up · Ctrl/C down · Shift boost · R rotate.
+          Click the world to capture the mouse; right click builds, left click
+          removes. Escape opens this menu.
+        </p>
+        <label
+          >Look sensitivity
+          <input
+            id="sensitivity"
+            type="range"
+            min="0.05"
+            max="0.5"
+            step="0.01"
+            value="0.16"
+        /></label>
+        <label
+          >Graphics
+          <select id="quality">
+            <option value="low">Battery saver</option>
+            <option value="balanced" selected>Balanced</option>
+            <option value="high">Sharper</option>
+          </select></label
+        >
+        <label
+          ><input id="gentle" type="checkbox" /> Gentler flight
+          acceleration</label
+        >
+      </details>
+      <div class="menu-actions">
+        <button id="home">Return home</button
+        ><button id="export">Back up world</button
+        ><label class="file-button"
+          >Import backup<input
+            id="import"
+            type="file"
+            accept="application/json,.json" /></label
+        ><button id="diagnostics">Download diagnostics</button>
+      </div>
+      <p class="note">
+        Saves stay in this browser. Keep a backup before clearing Safari data.
+        After your first visit, offline play is available once the page says
+        “Offline ready”. On iPhone: Share → Add to Home Screen.
+      </p>
+      <a
+        href="https://github.com/nobothehobo/luanti-space"
+        target="_blank"
+        rel="noopener"
+        >Source &amp; development ↗</a
+      >
+    </dialog>
+    <script type="module" src="src/app.js"></script>
+  </body>
+</html>
