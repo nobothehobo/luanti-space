@@ -9,6 +9,11 @@
 
 Luanti is a free open-source voxel game engine with easy modding and game creation.
 
+This fork also contains **Luanti Space**, an original flight-and-building game.
+Start with [the game guide](games/luanti_space/README.md) and
+[the architecture audit](doc/space/ARCHITECTURE.md). Engine source and upstream
+credits below are preserved. iOS remains a required, currently unverified port target.
+
 Copyright (C) 2010-2026 Perttu Ahola <celeron55@gmail.com>
 and contributors (see source file comments and the version control log)
 
