@@ -83,6 +83,17 @@ header strong {
   letter-spacing: -0.6px;
   font-weight: 550;
 }
+header > div {
+  background: #102530cc;
+  padding: 10px 14px;
+  border: 1px solid #b5d7d520;
+  border-radius: 14px;
+}
+#hud {
+  background: #102530dc;
+  padding: 7px 10px;
+  border-radius: 8px;
+}
 .eyebrow {
   font-size: 10px;
   letter-spacing: 2.5px;

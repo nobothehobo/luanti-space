@@ -81,16 +81,14 @@ async function run(type, options, label) {
     } else {
       // Capture multi-touch with different pointer IDs, not synthesized mouse clicks.
       const pointer = async (selector, event, id, x, y) =>
-        page
-          .locator(selector)
-          .dispatchEvent(event, {
-            pointerId: id,
-            pointerType: "touch",
-            isPrimary: id === 1,
-            clientX: x,
-            clientY: y,
-            bubbles: true,
-          });
+        page.locator(selector).dispatchEvent(event, {
+          pointerId: id,
+          pointerType: "touch",
+          isPrimary: id === 1,
+          clientX: x,
+          clientY: y,
+          bubbles: true,
+        });
       const stick = await page.locator("#stick").boundingBox();
       await pointer(
         "#stick",
@@ -119,14 +117,12 @@ async function run(type, options, label) {
       await page.click("#menu");
       await page.click("#home");
       await page.click("#play");
-      const buttons = await page
-        .locator("[data-hold]")
-        .evaluateAll((nodes) =>
-          nodes.map((n) => ({
-            w: n.getBoundingClientRect().width,
-            h: n.getBoundingClientRect().height,
-          })),
-        );
+      const buttons = await page.locator("[data-hold]").evaluateAll((nodes) =>
+        nodes.map((n) => ({
+          w: n.getBoundingClientRect().width,
+          h: n.getBoundingClientRect().height,
+        })),
+      );
       assert.ok(
         buttons.every((b) => b.w >= 44 && b.h >= 44),
         "Comfortable touch button minimums",
@@ -142,7 +138,7 @@ async function run(type, options, label) {
       pointerType: "touch",
       bubbles: true,
     });
-    await sleep(100);
+    await page.waitForFunction(() => spaceDebug().edits.length >= 1);
     await build.dispatchEvent("pointerup", {
       pointerId: 8,
       pointerType: "touch",
@@ -159,6 +155,26 @@ async function run(type, options, label) {
     await sleep(180);
     await page.click("#redo");
     assert.equal((await page.evaluate(() => spaceDebug())).edits.length, 1);
+    await sleep(250);
+    const remove = page.locator("[data-hold=remove]");
+    await remove.dispatchEvent("pointerdown", {
+      pointerId: 9,
+      pointerType: "touch",
+      bubbles: true,
+    });
+    await page.waitForFunction(() => spaceDebug().edits.length === 0);
+    await remove.dispatchEvent("pointerup", {
+      pointerId: 9,
+      pointerType: "touch",
+      bubbles: true,
+    });
+    await sleep(250);
+    await page.click("#undo");
+    assert.equal(
+      (await page.evaluate(() => spaceDebug())).edits.length,
+      1,
+      "Undo removal",
+    );
     await page.reload();
     await page.waitForFunction(() => window.spaceDebug);
     assert.equal(
@@ -200,7 +216,7 @@ async function run(type, options, label) {
     assert.deepEqual(errors, []);
     assert.deepEqual((await page.evaluate(() => spaceDebug())).errors, []);
     console.log(
-      `PASS ${label}: input, build/rotate, undo/redo, save/reload, backup, rejected import, offline`,
+      `PASS ${label}: input, build/remove/rotate, undo/redo, save/reload, backup, rejected import, offline`,
     );
     await context.close();
   } finally {
