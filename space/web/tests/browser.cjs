@@ -98,7 +98,13 @@ async function run(type, options, label) {
         stick.y + stick.height * 0.2,
       );
       await pointer("[data-hold=ascend]", "pointerdown", 2, 50, 100);
-      await sleep(500);
+      await page.waitForFunction(
+        (start) =>
+          spaceDebug().feet[1] > start[1] + 0.8 &&
+          spaceDebug().feet[2] > start[2] + 0.8,
+        initial.feet,
+        { timeout: 15000 },
+      );
       await pointer("#stick", "pointerup", 1, stick.x, stick.y);
       await pointer("[data-hold=ascend]", "pointerup", 2, 50, 100);
       await sleep(400);

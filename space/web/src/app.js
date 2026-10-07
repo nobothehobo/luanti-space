@@ -21,7 +21,6 @@ let settings = {
 let ready = false,
   running = false,
   saveBlocked = false,
-  savedRevision = -1,
   storedBackup = null,
   offline = false;
 let toastTimer,
@@ -30,7 +29,6 @@ let toastTimer,
   frameCount = 0,
   fps = 0,
   fpsTime = 0,
-  simTime = 0,
   lastSave = 0,
   lastHud = 0;
 let buildInfo = { edition: "browser-solo-v1", revision: "development" };
@@ -70,7 +68,6 @@ function save(force = false) {
     const data = JSON.stringify(snapshot(world, player, settings));
     localStorage.setItem(SAVE_KEY, data);
     storedBackup = data;
-    savedRevision = world.revision;
     $("#save-status").textContent = offline
       ? "SAVED · OFFLINE READY"
       : "SAVED ON THIS DEVICE";
@@ -115,7 +112,7 @@ function command(action, notify = true) {
       direction: basis(player.yaw, player.pitch).forward,
     },
     settings,
-    simTime,
+    performance.now() / 1000,
   );
   if (result.ok) {
     save(true);
@@ -159,6 +156,10 @@ $("#home").addEventListener("click", () => {
   message("Back at the launch island");
 });
 $("#export").addEventListener("click", () => {
+  if (!ready) {
+    message("The garden is still loading.");
+    return;
+  }
   const data =
     saveBlocked && storedBackup
       ? storedBackup
@@ -258,7 +259,6 @@ function frame(time) {
     const actions = input.actions();
     while (accumulator >= 1 / 120) {
       advance(player, actions, 1 / 120, world, settings.gentle);
-      simTime += 1 / 120;
       accumulator -= 1 / 120;
     }
     if (actions.place || actions.remove)
