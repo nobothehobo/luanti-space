@@ -223,6 +223,24 @@ async function run(type, options, label) {
     // Cut the real origin connection instead; do not skip cached offline reload.
     const beforeOutage = refusedRequests;
     networkAvailable = false;
+    assert.ok(
+      await page.evaluate(async () => {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 5000);
+        try {
+          await fetch("offline-probe.txt", {
+            cache: "no-store",
+            signal: controller.signal,
+          });
+          return false;
+        } catch {
+          return true;
+        } finally {
+          clearTimeout(timeout);
+        }
+      }),
+      "Uncached request must fail during the outage",
+    );
     await page.reload();
     await page.waitForFunction(() => window.spaceDebug);
     assert.equal(

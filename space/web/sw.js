@@ -15,11 +15,22 @@ const FILES = [
   "src/renderer.js",
   "src/save.js",
 ];
+const SHELL_PATHS = new Set(
+  FILES.map((file) => new URL(file, self.registration.scope).pathname),
+);
 self.addEventListener("install", (event) =>
   event.waitUntil(
     caches
       .open(CACHE)
-      .then((cache) => cache.addAll(FILES))
+      .then((cache) =>
+        cache.addAll(
+          FILES.map((file) =>
+            new Request(new URL(file, self.registration.scope), {
+              cache: "reload",
+            }),
+          ),
+        ),
+      )
       .then(() => self.skipWaiting()),
   ),
 );
@@ -44,13 +55,15 @@ self.addEventListener("fetch", (event) => {
     !url.href.startsWith(self.registration.scope)
   )
     return;
-  // Network first picks up new cloud builds; a validated precache allows offline launch.
+  if (!SHELL_PATHS.has(url.pathname)) return;
+  // A complete versioned shell starts immediately, even if WebKit takes a long
+  // time to reject an unavailable connection. New builds install a fresh cache
+  // through the browser's service-worker update check; never mix network files
+  // from a partially propagated deployment into this cached shell.
   event.respondWith(
-    fetch(event.request).catch(() =>
-      caches
-        .open(CACHE)
-        .then((cache) => cache.match(event.request, { ignoreSearch: true }))
-        .then((response) => response || Response.error()),
-    ),
+    caches
+      .open(CACHE)
+      .then((cache) => cache.match(event.request, { ignoreSearch: true }))
+      .then((response) => response || fetch(event.request)),
   );
 });

@@ -35,6 +35,14 @@ asserts that connections were refused, and still requires a cached reload and
 preserved world edits. This is not an offline-test skip. Updated cloud results
 must be inspected before declaring WebKit success.
 
+The revised PR run `37845918777` passed all four browser cases, including WebKit.
+The simultaneous push run exposed a separate intermittent offline-start timeout:
+WebKit delayed network-first module failures after the server outage. The shell
+is now versioned/cache-first, with fresh downloads only while installing a new
+worker. The outage test also requires an uncached request to fail before checking
+cached launch. This avoids both startup delays and mixed-version shell assets.
+The follow-up must pass cloud checks before it is published.
+
 GitHub Pages requires the owner's one-time publishing-source selection. There
 is no claim that an expected URL is live before successful deployment. The
 browser is local solo and does not join native Luanti servers.

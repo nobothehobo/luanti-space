@@ -82,8 +82,10 @@ this is not the eventual large-world architecture. Browser storage can be
 evicted/cleared by iOS, and private browsing may not retain it. Export backups.
 Backgrounding pauses input/movement. Home-screen and Safari saves may be separate.
 Look supports mouse pointer lock where available and drag-to-look otherwise.
-Automatic updates are picked up on reload while online; existing offline builds
-stay available until a new complete precache activates.
+The versioned app shell is cache-first so offline startup never waits for slow
+network failures. While online, Safari checks for a new service worker; existing
+builds stay usable until a complete new precache activates. Reload after that
+update to enter the new build (the menu shows its revision).
 
 ## Reproduce tests without a phone
 
