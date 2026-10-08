@@ -1,12 +1,28 @@
 // SPDX-License-Identifier: LGPL-2.1-or-later
 // This local authority is NOT the Luanti multiplayer server. A future transport
 // must perform these validations remotely; never accept browser world authority.
+import { DESTINATIONS, planetMaterial } from "./exploration.js";
 export const PALETTE = [
   { name: "space_core:alloy", title: "Pearl alloy", color: [0.76, 0.84, 0.86] },
   { name: "space_core:slate", title: "Basalt", color: [0.24, 0.32, 0.39] },
   { name: "space_core:copper", title: "Copper rib", color: [0.79, 0.43, 0.28] },
   { name: "space_core:light", title: "Cyan signal", color: [0.26, 0.88, 0.85] },
+  { name: "expedition:moss", title: "Morrow moss", color: [0.48, 0.64, 0.42] },
+  { name: "expedition:ochre", title: "Ember ochre", color: [0.74, 0.43, 0.3] },
+  {
+    name: "expedition:solar",
+    title: "Solar charger",
+    color: [0.3, 0.38, 0.73],
+  },
+  {
+    name: "expedition:battery",
+    title: "Main battery",
+    color: [0.79, 0.72, 0.35],
+  },
 ];
+// ID 5 is reserved for the protected launch/ship core, not a palette index.
+export const MATERIAL_IDS = [1, 2, 3, 4, 6, 7, 8, 9];
+export const material = (id) => PALETTE[MATERIAL_IDS.indexOf(id)] || PALETTE[0];
 export const REACH = 10,
   LIMIT = 1000,
   MAX_EDITS = 20000;
@@ -32,7 +48,7 @@ export function materialAt(spec, p) {
     if (depth === 0 && (x + z) % 11 === 0) return 4;
     return depth === 0 ? 1 : 2;
   }
-  return 0;
+  return spec.exploration ? planetMaterial(p) : 0;
 }
 export function overlapsPlayer(p, feet) {
   return (
@@ -72,6 +88,18 @@ export class World {
             if (id) this.set(p, { id, rotation: 0 }, false);
           }
     }
+    if (spec.exploration)
+      for (const planet of DESTINATIONS) {
+        const [cx, cy, cz] = planet.center,
+          r = planet.radius + 8;
+        for (let x = cx - r; x <= cx + r; x++)
+          for (let y = cy - r; y <= cy + r; y++)
+            for (let z = cz - r; z <= cz + r; z++) {
+              const p = [x, y, z],
+                id = planetMaterial(p);
+              if (id) this.set(p, { id, rotation: 0 }, false);
+            }
+      }
   }
   get(p) {
     return this.cells.get(key(p)) || { id: 0, rotation: 0 };
@@ -143,8 +171,7 @@ export class World {
     }
     if (
       !Number.isInteger(selection.id) ||
-      selection.id < 1 ||
-      selection.id > 4 ||
+      !MATERIAL_IDS.includes(selection.id) ||
       !Number.isInteger(selection.rotation) ||
       selection.rotation < 0 ||
       selection.rotation > 3

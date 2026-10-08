@@ -114,6 +114,68 @@ header button span {
   color: #b5d3d5;
   letter-spacing: 1px;
 }
+#navigation {
+  position: fixed;
+  top: calc(126px + env(safe-area-inset-top));
+  left: calc(24px + env(safe-area-inset-left));
+  padding: 8px 10px;
+  background: var(--glass);
+  border-radius: 8px;
+  font-size: 12px;
+  pointer-events: none;
+}
+#pilot {
+  position: fixed;
+  top: calc(78px + env(safe-area-inset-top));
+  right: calc(24px + env(safe-area-inset-right));
+  font-size: 12px;
+}
+.paused #pilot {
+  display: none;
+}
+#power {
+  position: fixed;
+  right: calc(24px + env(safe-area-inset-right));
+  top: calc(133px + env(safe-area-inset-top));
+  font-size: 11px;
+  padding: 8px;
+}
+.paused #power {
+  display: none;
+}
+.expedition h2 {
+  font-size: 16px;
+  margin: 16px 0 8px;
+}
+footer {
+  overflow-x: auto;
+}
+footer button {
+  flex-shrink: 0;
+}
+#palette {
+  flex-shrink: 0;
+}
+@media (max-width: 600px) {
+  #palette {
+    max-width: 30vw;
+    overflow-x: auto;
+  }
+  #navigation {
+    font-size: 10px;
+    top: calc(116px + env(safe-area-inset-top));
+    left: 12px;
+  }
+  #pilot {
+    right: 12px;
+    top: calc(75px + env(safe-area-inset-top));
+    padding: 8px;
+  }
+  #hud {
+    max-width: 92vw;
+    letter-spacing: 0;
+  }
+}
 #reticle {
   position: fixed;
   left: 50%;

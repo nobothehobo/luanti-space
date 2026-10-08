@@ -1,8 +1,27 @@
 // SPDX-License-Identifier: LGPL-2.1-or-later
 // Every input source produces the same actions. Pointer capture permits moving,
 // looking, ascending and building simultaneously; no mouse-event touch emulation.
+export function keyCode(e) {
+  return (
+    e.code ||
+    {
+      " ": "Space",
+      Control: "ControlLeft",
+      Shift: "ShiftLeft",
+      Escape: "Escape",
+    }[e.key] ||
+    (/^[a-z]$/i.test(e.key || "") ? "Key" + e.key.toUpperCase() : "")
+  );
+}
 export class Input {
-  constructor(canvas, look, onRotate, onPause) {
+  constructor(
+    canvas,
+    look,
+    onRotate,
+    onPause,
+    onDevice = () => {},
+    onUse = () => {},
+  ) {
     this.keys = new Set();
     this.held = new Map();
     this.axis = [0, 0];
@@ -14,6 +33,8 @@ export class Input {
     this.lastLook = null;
     document.addEventListener("keydown", (e) => {
       if (!this.enabled || e.target.matches("input,select,textarea")) return;
+      const code = keyCode(e);
+      onDevice("keyboard");
       if (
         [
           "Space",
@@ -27,24 +48,44 @@ export class Input {
           "KeyD",
           "KeyC",
           "KeyR",
-        ].includes(e.code)
+          "KeyF",
+          "KeyX",
+          "KeyV",
+        ].includes(code)
       )
         e.preventDefault();
-      this.keys.add(e.code);
-      if (e.code === "KeyR" && !e.repeat) onRotate();
-      if (e.code === "Escape") onPause();
+      this.keys.add(code);
+      if (code === "KeyR" && !e.repeat) onRotate();
+      if (code === "KeyV" && !e.repeat) onUse();
+      if (code === "Escape") onPause();
     });
-    document.addEventListener("keyup", (e) => this.keys.delete(e.code));
+    document.addEventListener("keyup", (e) => this.keys.delete(keyCode(e)));
     canvas.addEventListener("contextmenu", (e) => e.preventDefault());
     canvas.addEventListener("pointerdown", (e) => {
       if (!this.enabled) return;
+      onDevice(e.pointerType === "touch" ? "touch" : "keyboard");
       if (e.pointerType === "mouse") {
         if (document.pointerLockElement !== canvas) {
+          if (e.button === 2) {
+            this.held.set(e.pointerId, "place");
+            if (e.isTrusted) canvas.setPointerCapture(e.pointerId);
+            return;
+          }
           // Safari/iPad can decline pointer lock: drag-to-look remains usable.
-          const request = canvas.requestPointerLock?.();
-          request?.catch?.(() => {});
+          try {
+            const request = canvas.requestPointerLock?.();
+            request?.catch?.(() => {});
+          } catch {
+            /* Some Safari versions throw instead of rejecting. */
+          }
           this.lookPointer = e.pointerId;
           this.lastLook = [e.clientX, e.clientY];
+          this.mouseTap = {
+            id: e.pointerId,
+            x: e.clientX,
+            y: e.clientY,
+            time: performance.now(),
+          };
           if (e.isTrusted) canvas.setPointerCapture(e.pointerId);
           return;
         }
@@ -67,11 +108,26 @@ export class Input {
         document.pointerLockElement !== canvas
       ) {
         this.look(e.clientX - this.lastLook[0], e.clientY - this.lastLook[1]);
+        if (
+          this.mouseTap &&
+          Math.hypot(e.clientX - this.mouseTap.x, e.clientY - this.mouseTap.y) >
+            5
+        )
+          this.mouseTap = null;
         this.lastLook = [e.clientX, e.clientY];
       }
     });
     for (const name of ["pointerup", "pointercancel", "lostpointercapture"])
       document.addEventListener(name, (e) => {
+        if (
+          name === "pointerup" &&
+          this.enabled &&
+          this.mouseTap?.id === e.pointerId &&
+          performance.now() - this.mouseTap.time < 350 &&
+          document.pointerLockElement !== canvas
+        )
+          this.removeTap = true;
+        if (this.mouseTap?.id === e.pointerId) this.mouseTap = null;
         this.held.delete(e.pointerId);
         if (e.pointerId === this.lookPointer) {
           this.lookPointer = null;
@@ -104,6 +160,7 @@ export class Input {
       if (!this.enabled || this.joystickPointer !== null) return;
       e.preventDefault();
       this.joystickPointer = e.pointerId;
+      onDevice("touch");
       if (e.isTrusted) stick.setPointerCapture(e.pointerId);
       move(e);
     });
@@ -127,10 +184,14 @@ export class Input {
     this.lookPointer = null;
     this.lastLook = null;
     if (this.knob) this.knob.style.transform = "translate(-50%,-50%)";
+    this.mouseTap = null;
+    this.removeTap = false;
   }
   actions() {
     const k = this.keys,
       held = (n) => [...this.held.values()].includes(n);
+    const removeTap = this.removeTap;
+    this.removeTap = false;
     return {
       move_forward: Math.max(
         -1,
@@ -153,8 +214,8 @@ export class Input {
         k.has("KeyC") ||
         held("descend"),
       boost: k.has("ShiftLeft") || k.has("ShiftRight") || held("boost"),
-      place: held("place"),
-      remove: held("remove"),
+      place: held("place") || k.has("KeyF"),
+      remove: held("remove") || k.has("KeyX") || removeTap,
       rotate: k.has("KeyR"),
     };
   }

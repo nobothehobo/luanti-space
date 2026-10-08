@@ -1,5 +1,14 @@
 // SPDX-License-Identifier: LGPL-2.1-or-later
-import { World, PALETTE, raycast } from "./world.js";
+import {
+  World,
+  PALETTE,
+  MATERIAL_IDS,
+  material,
+  raycast,
+  overlapsPlayer,
+} from "./world.js";
+import { Ship } from "./ship.js";
+import { DESTINATIONS } from "./exploration.js";
 import { advance, basis, eye, SPAWN } from "./flight.js";
 import { Input } from "./input.js";
 import { Renderer } from "./renderer.js";
@@ -10,6 +19,7 @@ let world,
   renderer,
   input,
   spec,
+  ship = new Ship(),
   player = { feet: [...SPAWN], yaw: 0, pitch: -0.8, velocity: [0, 0, 0] };
 let settings = {
   id: 1,
@@ -17,6 +27,7 @@ let settings = {
   sensitivity: 0.16,
   quality: "balanced",
   gentle: false,
+  controls: "auto",
 };
 let ready = false,
   running = false,
@@ -32,6 +43,11 @@ let toastTimer,
   lastSave = 0,
   lastHud = 0;
 let buildInfo = { edition: "browser-solo-v1", revision: "development" };
+let activeDevice =
+  matchMedia("(pointer:coarse)").matches || navigator.maxTouchPoints > 0
+    ? "touch"
+    : "keyboard";
+let buildMode = "terrain";
 const panel = $("#panel");
 document.body.classList.add("paused");
 document.body.classList.toggle(
@@ -65,7 +81,7 @@ function pause() {
 function save(force = false) {
   if (!ready || saveBlocked) return false;
   try {
-    const data = JSON.stringify(snapshot(world, player, settings));
+    const data = JSON.stringify(snapshot(world, player, settings, ship));
     localStorage.setItem(SAVE_KEY, data);
     storedBackup = data;
     $("#save-status").textContent = offline
@@ -93,6 +109,12 @@ function syncSettings() {
   $("#sensitivity").value = settings.sensitivity;
   $("#quality").value = settings.quality;
   $("#gentle").checked = settings.gentle;
+  $("#controls").value = settings.controls || "auto";
+  document.body.classList.toggle(
+    "touch",
+    (settings.controls || "auto") === "touch" ||
+      ((settings.controls || "auto") === "auto" && activeDevice === "touch"),
+  );
   $("#rotation").textContent = `${settings.rotation * 90}°`;
   for (const b of $("#palette").children)
     b.classList.toggle("active", Number(b.dataset.id) === settings.id);
@@ -104,7 +126,11 @@ function rotate() {
   message(`Rotated ${settings.rotation * 90}°`);
 }
 function command(action, notify = true) {
-  const result = world.command(
+  if (ship.piloting) {
+    if (notify) message("Exit your ship before building");
+    return { ok: false, reason: "Piloting" };
+  }
+  const result = (buildMode === "ship" ? ship : world).command(
     action,
     {
       feet: player.feet,
@@ -136,7 +162,7 @@ $("#play").addEventListener("click", () => {
   input.reset();
   last = performance.now();
   accumulator = 0;
-  $("#play").textContent = "Resume garden";
+  $("#play").textContent = "Resume expedition";
   $("#play").blur();
 });
 $("#menu").addEventListener("click", pause);
@@ -147,11 +173,82 @@ panel.addEventListener("cancel", (e) => {
 $("#rotate").addEventListener("click", rotate);
 $("#undo").addEventListener("click", () => command("undo"));
 $("#redo").addEventListener("click", () => command("redo"));
+function pilot() {
+  if (!ready) return;
+  if (ship.piloting) {
+    if (!ship.disembark(player, world)) {
+      message("No clear exit. Fly away from terrain first.");
+      return;
+    }
+    message("Ship parked. Switch to Hull to customize it.");
+  } else {
+    if (!ship.board(player)) {
+      message("Fly within 12 m of the ship to board.");
+      return;
+    }
+    message("Piloting · WASD / stick moves · solar chargers refill boost");
+  }
+  input?.reset();
+  save();
+}
+$("#pilot").addEventListener("click", pilot);
+$("#power").addEventListener("click", () => {
+  if (Math.hypot(...ship.position.map((v, i) => v - player.feet[i])) > 12) {
+    message("Board or approach your ship to change power");
+    return;
+  }
+  ship.mainOn = !ship.mainOn;
+  save();
+  message(
+    ship.mainOn
+      ? "Main battery ON · thrust enabled"
+      : "Main battery OFF · solar reserve recharges main · thrust disabled",
+  );
+});
+$("#course").addEventListener("click", () => {
+  const destination = DESTINATIONS[Number($("#destination").value)];
+  const d = destination.center.map((v, i) => v - eye(player.feet)[i]);
+  player.yaw = (Math.atan2(d[0], d[2]) + Math.PI * 2) % (Math.PI * 2);
+  player.pitch = Math.atan2(d[1], Math.hypot(d[0], d[2]));
+  message(
+    `Course toward ${destination.name}. Pilot and fly forward; no teleport.`,
+  );
+});
+$("#build-mode").addEventListener("click", () => {
+  buildMode = buildMode === "terrain" ? "ship" : "terrain";
+  $("#build-mode").textContent = buildMode === "ship" ? "Hull" : "Terrain";
+  message(
+    buildMode === "ship"
+      ? "Hull grid · park and fly alongside your ship"
+      : "Terrain grid",
+  );
+});
+$("#starter").addEventListener("click", () => {
+  const candidate = new Ship();
+  candidate.position = player.feet.map((v, i) => v + (i === 0 ? 7 : 0));
+  if (ship.piloting || candidate.collides(world, candidate.position)) {
+    message("Leave your ship and find clear space first.");
+    return;
+  }
+  if (
+    !confirm(
+      "Replace your current ship with the starter blueprint? Back up first to keep a custom hull.",
+    )
+  )
+    return;
+  ship = candidate;
+  buildMode = "ship";
+  $("#build-mode").textContent = "Hull";
+  save();
+  message("Starter hull pasted beside you");
+});
 $("#home").addEventListener("click", () => {
   player.feet = [...SPAWN];
   player.velocity = [0, 0, 0];
   player.yaw = 0;
   player.pitch = -0.8;
+  ship.piloting = false;
+  ship.velocity = [0, 0, 0];
   save();
   message("Back at the launch island");
 });
@@ -163,7 +260,7 @@ $("#export").addEventListener("click", () => {
   const data =
     saveBlocked && storedBackup
       ? storedBackup
-      : JSON.stringify(snapshot(world, player, settings), null, 2);
+      : JSON.stringify(snapshot(world, player, settings, ship), null, 2);
   download(`space-garden-${new Date().toISOString().slice(0, 10)}.json`, data);
   message("Backup downloaded. Keep it in Files.");
 });
@@ -184,6 +281,7 @@ $("#import").addEventListener("change", async (e) => {
     renderer.world = world;
     player = restored.player;
     settings = restored.settings;
+    ship = restored.ship;
     saveBlocked = false;
     syncSettings();
     save(true);
@@ -195,7 +293,7 @@ $("#import").addEventListener("change", async (e) => {
     e.target.value = "";
   }
 });
-for (const name of ["sensitivity", "quality", "gentle"])
+for (const name of ["sensitivity", "quality", "gentle", "controls"])
   $("#" + name).addEventListener("change", (e) => {
     settings[name] =
       name === "gentle"
@@ -203,6 +301,7 @@ for (const name of ["sensitivity", "quality", "gentle"])
         : name === "sensitivity"
           ? Number(e.target.value)
           : e.target.value;
+    syncSettings();
     save();
   });
 $("#diagnostics").addEventListener("click", () => {
@@ -258,7 +357,14 @@ function frame(time) {
     accumulator += dt;
     const actions = input.actions();
     while (accumulator >= 1 / 120) {
-      advance(player, actions, 1 / 120, world, settings.gentle);
+      ship.tick(actions, 1 / 120, player.yaw, world, player);
+      if (!ship.piloting) {
+        world.bodyBlocked = (feet) =>
+          [...ship.cells.keys()].some((k) =>
+            overlapsPlayer(ship.global(k.split(",").map(Number)), feet),
+          );
+        advance(player, actions, 1 / 120, world, settings.gentle);
+      }
       accumulator -= 1 / 120;
     }
     if (actions.place || actions.remove)
@@ -268,26 +374,49 @@ function frame(time) {
       lastSave = time;
     }
   }
-  const target = raycast(
-    world,
-    eye(player.feet),
-    basis(player.yaw, player.pitch).forward,
-  );
+  const editWorld = buildMode === "ship" ? ship : world;
+  const target = ship.piloting
+    ? null
+    : raycast(
+        editWorld,
+        buildMode === "ship" ? ship.local(eye(player.feet)) : eye(player.feet),
+        basis(player.yaw, player.pitch).forward,
+      );
   const reason = target
-    ? world.validate(
+    ? editWorld.validate(
         target.above,
-        { feet: player.feet, eye: eye(player.feet) },
+        buildMode === "ship"
+          ? ship.pose({ feet: player.feet, eye: eye(player.feet) })
+          : { feet: player.feet, eye: eye(player.feet) },
         true,
       )
-    : "Aim at an island to build";
-  renderer.render(player, target, !reason, settings);
+    : ship.piloting
+      ? "Piloting · exit to explore or edit"
+      : buildMode === "ship"
+        ? "Aim at your parked hull"
+        : "Aim at terrain to build";
+  if (target && buildMode === "ship") target.offset = ship.position;
+  renderer.render(player, target, !reason, settings, ship);
   if (time - lastHud > 120) {
     lastHud = time;
     const speed = Math.hypot(...player.velocity);
     $("#speed").textContent =
-      `${speed < 0.1 ? "HOVER" : "FLIGHT"} · ${speed.toFixed(1)} m/s`;
+      `${ship.piloting ? "SHIP" : speed < 0.1 ? "HOVER" : "FLIGHT"} · ${speed.toFixed(1)} m/s`;
+    $("#power").textContent =
+      `Main ${ship.mainOn ? "ON" : "OFF"} · ${Math.round(ship.energy)}/${ship.capacity()} · solar ${Math.round(ship.solar)}`;
+    const destination = DESTINATIONS[Number($("#destination").value)];
+    const remaining = Math.max(
+      0,
+      Math.hypot(...player.feet.map((v, i) => v - destination.center[i])) -
+        destination.radius,
+    );
+    $("#navigation").textContent =
+      `${destination.name} · ${Math.round(remaining)} m to surface`;
+    $("#pilot").textContent = ship.piloting
+      ? "Exit ship (V)"
+      : "Pilot ship (V)";
     $("#target-status").textContent =
-      reason || `${PALETTE[settings.id - 1].title} · ready`;
+      reason || `${material(settings.id).title} · ${buildMode} ready`;
     $("#target-status").style.color = reason && target ? "#ffb2b2" : "#cce5de";
   }
 }
@@ -298,6 +427,7 @@ async function start() {
     const response = await fetch("world_spec.json");
     if (!response.ok) throw new Error("World data could not load");
     spec = await response.json();
+    spec = { ...spec, exploration: 1 };
     world = new World(spec);
     try {
       storedBackup = localStorage.getItem(SAVE_KEY);
@@ -305,6 +435,7 @@ async function start() {
         const restored = restore(world, JSON.parse(storedBackup));
         player = restored.player;
         settings = restored.settings;
+        ship = restored.ship;
       }
     } catch (error) {
       saveBlocked = true;
@@ -316,7 +447,7 @@ async function start() {
     }
     for (const [i, material] of PALETTE.entries()) {
       const b = document.createElement("button");
-      b.dataset.id = i + 1;
+      b.dataset.id = MATERIAL_IDS[i];
       b.title = material.title;
       b.setAttribute("aria-label", material.title);
       const swatch = document.createElement("span");
@@ -324,7 +455,7 @@ async function start() {
       swatch.style.background = `rgb(${material.color.map((v) => Math.round(v * 255)).join(",")})`;
       b.append(swatch);
       b.addEventListener("click", () => {
-        settings.id = i + 1;
+        settings.id = MATERIAL_IDS[i];
         syncSettings();
         save();
         message(material.title);
@@ -345,6 +476,13 @@ async function start() {
       },
       rotate,
       pause,
+      (device) => {
+        if (activeDevice !== device) {
+          activeDevice = device;
+          syncSettings();
+        }
+      },
+      pilot,
     );
     $("#view").addEventListener("webglcontextlost", (e) => {
       e.preventDefault();
@@ -360,8 +498,8 @@ async function start() {
     ready = true;
     $("#play").disabled = false;
     $("#play").textContent = storedBackup
-      ? "Continue your garden"
-      : "Enter your garden";
+      ? "Continue expedition"
+      : "Begin expedition";
     const versionLabel = document.createElement("p");
     versionLabel.className = "note";
     versionLabel.textContent = `Build ${buildInfo.revision}`;
@@ -383,6 +521,10 @@ async function start() {
         errors: [...errors],
         running,
         fps,
+        ship: ship.data(),
+        piloting: ship.piloting,
+        buildMode,
+        controls: settings.controls || "auto",
       });
     if ("serviceWorker" in navigator) {
       try {

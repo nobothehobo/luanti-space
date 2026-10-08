@@ -5,12 +5,15 @@ import {
   MAX_EDITS,
   materialAt,
   overlapsPlayer,
+  MATERIAL_IDS,
 } from "./world.js";
+import { Ship } from "./ship.js";
 export const SAVE_KEY = "luanti-space-browser-v1";
-export function snapshot(world, player, settings) {
+export function snapshot(world, player, settings, ship = null) {
   return {
     format: "luanti-space-browser",
-    version: 1,
+    version: ship ? 2 : 1,
+    ...(ship ? { ship: ship.data(), exploration: 1 } : {}),
     generator: world.spec.generator,
     edits: [...world.edits].map(([p, n]) => [
       ...p.split(",").map(Number),
@@ -25,12 +28,16 @@ export function validateSave(raw, spec) {
   if (
     !raw ||
     raw.format !== "luanti-space-browser" ||
-    raw.version !== 1 ||
+    ![1, 2].includes(raw.version) ||
     raw.generator !== spec.generator
   )
     throw new Error(
       "Unsupported save version. Your current world has not been changed.",
     );
+  if (raw.version === 2) {
+    if (raw.exploration !== 1) throw Error("Unsupported exploration save");
+    Ship.validate(raw.ship);
+  }
   if (!Array.isArray(raw.edits) || raw.edits.length > MAX_EDITS)
     throw new Error("Invalid edit list");
   const seen = new Set();
@@ -40,8 +47,7 @@ export function validateSave(raw, spec) {
       e.length !== 5 ||
       !cellValid(e.slice(0, 3)) ||
       !Number.isInteger(e[3]) ||
-      e[3] < 0 ||
-      e[3] > 4 ||
+      ![0, ...MATERIAL_IDS].includes(e[3]) ||
       !Number.isInteger(e[4]) ||
       e[4] < 0 ||
       e[4] > 3 ||
@@ -73,19 +79,31 @@ export function validateSave(raw, spec) {
     !["low", "balanced", "high"].includes(s.quality) ||
     typeof s.gentle !== "boolean" ||
     !Number.isInteger(s.id) ||
-    s.id < 1 ||
-    s.id > 4 ||
+    !MATERIAL_IDS.includes(s.id) ||
     !Number.isInteger(s.rotation) ||
     s.rotation < 0 ||
     s.rotation > 3
   )
     throw new Error("Invalid settings");
+  if (
+    s.controls !== undefined &&
+    !["auto", "touch", "keyboard"].includes(s.controls)
+  )
+    throw Error("Invalid control mode");
   return raw;
 }
 export function restore(world, raw) {
   const s = validateSave(raw, world.spec);
+  const ship = s.version === 2 ? Ship.restore(s.ship) : new Ship();
   for (const e of s.edits)
     world.set(e.slice(0, 3), { id: e[3], rotation: e[4] });
+  if (ship.collides(world, ship.position)) {
+    if (s.version === 2) throw Error("Saved ship intersects terrain");
+    while (ship.collides(world, ship.position) && ship.position[1] < 900)
+      ship.position[1] += 20;
+    if (ship.collides(world, ship.position))
+      throw Error("No clear space for starter hull");
+  }
   // Never load a player inside a newly imported structure.
   let feet = [...s.player.feet];
   if (
@@ -94,8 +112,10 @@ export function restore(world, raw) {
     )
   )
     feet = [0, 34, -6];
+  if (ship.piloting) feet = ship.global([0, 1, -1]);
   return {
     player: { ...s.player, feet, velocity: [0, 0, 0] },
     settings: { ...s.settings },
+    ship,
   };
 }

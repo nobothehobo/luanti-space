@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LGPL-2.1-or-later
-import { PALETTE, chunkKey, distance } from "./world.js";
+import { material, distance } from "./world.js";
 import { basis, eye } from "./flight.js";
 const FACES = [
   {
@@ -78,9 +78,7 @@ function cube(out, p, node, world, tint = null, scale = 1) {
     if (world && world.get(p.map((v, i) => v + face.n[i])).id) continue;
     const color =
       tint ||
-      (PALETTE[node.id - 1]?.color || PALETTE[0].color).map(
-        (v) => v * (node.id === 4 ? 1 : face.light),
-      );
+      material(node.id).color.map((v) => v * (node.id === 4 ? 1 : face.light));
     for (const i of TRI)
       vertex(
         out,
@@ -129,9 +127,9 @@ export class Renderer {
       gl,
       `
       attribute vec3 aPosition; attribute vec3 aColor; attribute vec2 aUV; attribute float aKind; attribute float aRotation;
-      uniform vec3 uEye; uniform vec3 uRight; uniform vec3 uUp; uniform vec3 uForward; uniform mat4 uProjection;
+      uniform vec3 uEye; uniform vec3 uRight; uniform vec3 uUp; uniform vec3 uForward; uniform vec3 uOffset; uniform mat4 uProjection;
       varying vec3 vColor; varying vec2 vUV; varying float vKind; varying float vRotation; varying float vDistance;
-      void main() { vec3 d=aPosition-uEye; gl_Position=uProjection*vec4(dot(d,uRight),dot(d,uUp),-dot(d,uForward),1.);
+      void main() { vec3 d=aPosition+uOffset-uEye; gl_Position=uProjection*vec4(dot(d,uRight),dot(d,uUp),-dot(d,uForward),1.);
         vColor=aColor; vUV=aUV; vKind=aKind; vRotation=aRotation; vDistance=length(d); }`,
       `
       precision highp float; varying vec3 vColor; varying vec2 vUV; varying float vKind; varying float vRotation; varying float vDistance;
@@ -143,7 +141,7 @@ export class Renderer {
         if(vKind>2.5&&vKind<3.5) c*=.77+.23*step(.16,fract(uv.x*4.));
         if(vKind>3.5&&vKind<4.5) c=mix(c,vec3(.65,1.,.94),.25);
         if(uPreview>.5) c=vColor*(edge<.04?1.:.75);
-        c=mix(c,vec3(.21,.31,.40),smoothstep(45.,175.,vDistance)); gl_FragColor=vec4(c,uAlpha); }`,
+        c=mix(c,vec3(.035,.065,.12),smoothstep(250.,800.,vDistance)); gl_FragColor=vec4(c,uAlpha); }`,
     );
     this.attributes = ["aPosition", "aColor", "aUV", "aKind", "aRotation"].map(
       (n) => gl.getAttribLocation(this.program, n),
@@ -157,6 +155,7 @@ export class Renderer {
         "uProjection",
         "uAlpha",
         "uPreview",
+        "uOffset",
       ].map((n) => [n, gl.getUniformLocation(this.program, n)]),
     );
     this.previewBuffer = gl.createBuffer();
@@ -165,9 +164,10 @@ export class Renderer {
       "attribute vec2 aPosition; varying vec2 vUV; void main(){vUV=aPosition*.5+.5;gl_Position=vec4(aPosition,1.,1.);}",
       `
       precision mediump float; varying vec2 vUV;
-      void main(){vec3 c=mix(vec3(.35,.48,.54),vec3(.055,.13,.23),vUV.y);
+      void main(){vec3 c=mix(vec3(.08,.14,.20),vec3(.008,.018,.045),vUV.y);
         float halo=exp(-length((vUV-vec2(.77,.68))*vec2(1.1,1.))*5.);
-        c+=vec3(.25,.14,.10)*halo; gl_FragColor=vec4(c,1.);}`,
+        vec2 cell=floor(vUV*vec2(420.,260.)); float star=step(.996,fract(sin(dot(cell,vec2(12.9898,78.233)))*43758.5453));
+        c+=vec3(.14,.09,.05)*halo+vec3(.38,.44,.50)*star; gl_FragColor=vec4(c,1.);}`,
     );
     this.skyAttribute = gl.getAttribLocation(this.sky, "aPosition");
     this.skyBuffer = gl.createBuffer();
@@ -228,7 +228,7 @@ export class Renderer {
       );
     }
   }
-  render(player, target, valid, settings) {
+  render(player, target, valid, settings, ship = null) {
     const gl = this.gl,
       canvas = this.canvas,
       ratio = Math.min(
@@ -257,7 +257,7 @@ export class Renderer {
       e = eye(player.feet),
       f = 1 / Math.tan(Math.PI / 6),
       near = 0.08,
-      far = 220;
+      far = 900;
     const projection = new Float32Array([
       f / (w / h),
       0,
@@ -286,14 +286,38 @@ export class Renderer {
       gl.uniform3fv(this.uniforms[n], v);
     gl.uniform1f(this.uniforms.uAlpha, 1);
     gl.uniform1f(this.uniforms.uPreview, 0);
+    gl.uniform3fv(this.uniforms.uOffset, [0, 0, 0]);
     this.drawCalls = 1;
     if (this.world.dirty.size) this.rebuild();
     for (const mesh of this.meshes.values()) {
-      if (distance(mesh.center, e) > 180) continue;
+      if (distance(mesh.center, e) > 850) continue;
       this.bind(mesh.buffer);
       gl.drawArrays(gl.TRIANGLES, 0, mesh.count);
       this.drawCalls++;
     }
+    if (ship) {
+      if (this.shipSource !== ship || this.shipRevision !== ship.revision) {
+        if (this.shipBuffer) gl.deleteBuffer(this.shipBuffer);
+        const vertices = [];
+        for (const [k, n] of ship.cells)
+          cube(vertices, k.split(",").map(Number), n, ship);
+        this.shipBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.shipBuffer);
+        gl.bufferData(
+          gl.ARRAY_BUFFER,
+          new Float32Array(vertices),
+          gl.STATIC_DRAW,
+        );
+        this.shipCount = vertices.length / 10;
+        this.shipSource = ship;
+        this.shipRevision = ship.revision;
+      }
+      gl.uniform3fv(this.uniforms.uOffset, ship.position);
+      this.bind(this.shipBuffer);
+      gl.drawArrays(gl.TRIANGLES, 0, this.shipCount);
+      this.drawCalls++;
+    }
+    gl.uniform3fv(this.uniforms.uOffset, target?.offset || [0, 0, 0]);
     if (target) {
       const vertices = [];
       cube(

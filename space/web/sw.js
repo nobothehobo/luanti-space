@@ -14,6 +14,8 @@ const FILES = [
   "src/input.js",
   "src/renderer.js",
   "src/save.js",
+  "src/ship.js",
+  "src/exploration.js",
 ];
 const SHELL_PATHS = new Set(
   FILES.map((file) => new URL(file, self.registration.scope).pathname),

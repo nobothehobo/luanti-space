@@ -195,6 +195,86 @@ async function run(type, options, label) {
       1,
       "Save/reload",
     );
+    // Exercise the public expedition controls, not a debug movement shortcut.
+    await page.click("#play");
+    await page.keyboard.press("KeyV");
+    await page.waitForFunction(() => spaceDebug().piloting);
+    const shipStart = await page.evaluate(() => spaceDebug().ship.position);
+    await page.keyboard.down("KeyW");
+    await page.waitForFunction(
+      (start) =>
+        Math.hypot(...spaceDebug().ship.position.map((v, i) => v - start[i])) >
+        2,
+      shipStart,
+    );
+    await page.keyboard.up("KeyW");
+    await page.waitForFunction(
+      () => Math.hypot(...spaceDebug().velocity) < 0.1,
+    );
+    await page.click("#power");
+    assert.equal((await page.evaluate(() => spaceDebug())).ship.mainOn, false);
+    const parked = await page.evaluate(() => spaceDebug().ship.position);
+    await page.keyboard.down("KeyW");
+    await sleep(500);
+    await page.keyboard.up("KeyW");
+    assert.deepEqual(
+      (await page.evaluate(() => spaceDebug())).ship.position,
+      parked,
+      "Main OFF prevents thrust",
+    );
+    await page.click("#power");
+    await page.keyboard.press("KeyV");
+    await page.waitForFunction(() => !spaceDebug().piloting);
+    // Test the no-pointer-lock adapter explicitly (the path used on iPad).
+    await page.evaluate(() => {
+      const canvas = document.querySelector("#view");
+      canvas.requestPointerLock = () => {
+        throw Error("Pointer lock unavailable in this test");
+      };
+    });
+    const beforeDrag = await page.evaluate(() => spaceDebug().yaw);
+    await page
+      .locator("#view")
+      .dispatchEvent("pointerdown", {
+        pointerType: "mouse",
+        pointerId: 30,
+        button: 0,
+        clientX: 200,
+        clientY: 180,
+        bubbles: true,
+      });
+    await page
+      .locator("#view")
+      .dispatchEvent("pointermove", {
+        pointerType: "mouse",
+        pointerId: 30,
+        clientX: 240,
+        clientY: 180,
+        bubbles: true,
+      });
+    await page
+      .locator("#view")
+      .dispatchEvent("pointerup", {
+        pointerType: "mouse",
+        pointerId: 30,
+        clientX: 240,
+        clientY: 180,
+        bubbles: true,
+      });
+    assert.notEqual(
+      (await page.evaluate(() => spaceDebug())).yaw,
+      beforeDrag,
+      "Unlocked trackpad drag changes view",
+    );
+    assert.equal(
+      await page.locator("body").evaluate((n) => n.classList.contains("touch")),
+      false,
+      "Keyboard/trackpad hides touch in auto mode",
+    );
+    await page.screenshot({
+      path: path.join(evidence, `${label}-expedition.png`),
+    });
+    await page.click("#menu");
     const download = page.waitForEvent("download");
     await page.click("#export");
     const backup = await download;
@@ -248,7 +328,10 @@ async function run(type, options, label) {
       1,
       "Offline reload",
     );
-    assert.ok(refusedRequests > beforeOutage, "Origin was actually unreachable");
+    assert.ok(
+      refusedRequests > beforeOutage,
+      "Origin was actually unreachable",
+    );
     assert.deepEqual(errors, []);
     assert.deepEqual((await page.evaluate(() => spaceDebug())).errors, []);
     console.log(

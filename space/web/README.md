@@ -1,6 +1,6 @@
 # Phone-first browser development
 
-This is an interim **original HTML/WebGL browser edition**, not Luanti compiled
+This is an interim **original HTML/WebGL browser expedition**, not Luanti compiled
 to WebAssembly and not an iOS app. Native `games/luanti_space` and upstream engine
 source remain separate. Browser and native editions share `world_spec.json`,
 integer-centered voxel coordinates, material identifiers, and action meanings.
@@ -38,6 +38,45 @@ The connected GitHub app cannot administer the Pages setting on your behalf.
 No Apple account, paid signing, new hosting account or local computer is needed.
 
 ## Implemented browser foundation
+
+### First Expedition (2026-10-08)
+
+The launch islands are now the starting outpost, not the final game identity.
+Two original voxel planetoids, Morrow and Ember, sit hundreds of meters away.
+Chart a course in Menu (this turns the view; it does not teleport), board within
+12 m using **Pilot ship / V**, then fly forward. Morrow is roughly a 30-second
+cruise from the outpost; the route between the two worlds is longer. Boost helps
+but uses considerably more energy. Surface exploration remains gravity-free.
+
+**Terrain / Hull** chooses the construction grid. Park, exit and fly alongside
+the hull to customize it with the same preview/place/remove/rotate/undo actions.
+The protected core keeps a connected hull; its pilot cabin must remain empty.
+**Paste starter ship** creates the original blueprint beside you in clear space
+after confirming replacement of the previous hull. Export first to keep a design.
+One ship is supported, with temporary 512-block / ±12-local-cell bounds.
+
+Main battery blocks provide 100 energy capacity each. Blue solar chargers refill
+a separate 100-unit reserve when neither hull nor terrain blocks their upward
+sunlight. Switch **Main OFF** to disable thrust and transfer reserve energy into
+main batteries. Stock chargers supply 6 units/second, transfer is capped at 12;
+cruise costs 0.6/second and boost 18/second while applying input. This is an
+original simple two-bank game mechanic, not a real electrical simulation. Pause
+and backgrounding stop simulation, including charging. Saves retain both banks,
+custom hull, pose and pilot state; version-1 garden saves upgrade without erasure.
+
+iPad: WASD, Space, C/Ctrl, Shift, R, V. Without pointer lock, **drag the trackpad
+to look**, short-click to remove, secondary-click to build; **F / X** also provide
+reliable continuous build/remove without secondary-click configuration. Controls
+setting offers Auto, Always touch, or Keyboard/trackpad. Auto follows actual
+input events rather than assuming every touch-capable device has no keyboard.
+
+This is a bounded browser sector: planetoid radii 32/28 m, not massive streamed
+planets. The ship translates as one rigid hull; it does not yet rotate, roll,
+break apart, simulate thruster forces/mass, dock or carry other players. Collision
+is conservative and uses all hull cells; terrain is not repeatedly edited as the
+ship moves. Larger streamed worlds, modular assembly tools, portable blueprints,
+discovery/resources and authoritative cooperative voyages remain future work.
+Native Luanti ship/planet parity is not implemented by this browser milestone.
 
 - Fixed-step 120Hz assisted hover/flight, acceleration/braking, cruise/boost,
   body collision, horizontal stabilization and sensitivity settings.
@@ -90,7 +129,7 @@ update to enter the new build (the menu shows its revision).
 ## Reproduce tests without a phone
 
 ```sh
-node --test space/web/tests/unit.test.mjs
+node --test space/web/tests/*.test.mjs
 python3 space/tools/package_web.py
 npm install --prefix build/web-tests --no-save playwright@1.62.1
 build/web-tests/node_modules/.bin/playwright install --with-deps chromium webkit

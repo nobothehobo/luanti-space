@@ -33,7 +33,7 @@ jobs:
         with:
           node-version: "24"
       - name: Test local authority and save schema
-        run: node --test space/web/tests/unit.test.mjs
+        run: node --test space/web/tests/*.test.mjs
       - name: Package self-contained browser game
         run: python3 space/tools/package_web.py
       - name: Install browser test dependencies only

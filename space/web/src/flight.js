@@ -18,6 +18,7 @@ export function basis(yaw, pitch) {
 }
 export const eye = (feet) => [feet[0], feet[1] + 1.625, feet[2]];
 function blocked(world, p) {
+  if(world.bodyBlocked?.(p)) return true;
   for (
     let x = Math.floor(p[0] - 0.3 + 0.5);
     x <= Math.floor(p[0] + 0.3 + 0.5 - 0.00001);
