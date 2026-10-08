@@ -17,7 +17,14 @@ const mime = {
   ".json": "application/json",
   ".webmanifest": "application/manifest+json",
 };
+let networkAvailable = true;
+let refusedRequests = 0;
 const server = http.createServer((req, res) => {
+  if (!networkAvailable) {
+    refusedRequests++;
+    req.socket.destroy();
+    return;
+  }
   let name = decodeURIComponent(new URL(req.url, "http://localhost").pathname);
   if (name.endsWith("/")) name += "index.html";
   const file = path.resolve(root, "." + name);
@@ -211,7 +218,11 @@ async function run(type, options, label) {
           .textContent.includes("OFFLINE READY"),
       { timeout: 15000 },
     );
-    await context.setOffline(true);
+    await page.waitForFunction(() => navigator.serviceWorker.controller);
+    // Playwright WebKit's setOffline rejects even literal SW responses (#42775).
+    // Cut the real origin connection instead; do not skip cached offline reload.
+    const beforeOutage = refusedRequests;
+    networkAvailable = false;
     await page.reload();
     await page.waitForFunction(() => window.spaceDebug);
     assert.equal(
@@ -219,6 +230,7 @@ async function run(type, options, label) {
       1,
       "Offline reload",
     );
+    assert.ok(refusedRequests > beforeOutage, "Origin was actually unreachable");
     assert.deepEqual(errors, []);
     assert.deepEqual((await page.evaluate(() => spaceDebug())).errors, []);
     console.log(
@@ -226,6 +238,7 @@ async function run(type, options, label) {
     );
     await context.close();
   } finally {
+    networkAvailable = true;
     await browser.close();
   }
 }

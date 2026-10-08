@@ -12,7 +12,8 @@ integer-centered voxel coordinates, material identifiers, and action meanings.
 2. GitHub Actions runs authority/save unit tests, desktop browser flows,
    portrait/landscape phone-size tests, and WebKit tests. Downloadable evidence
    includes screenshots and world backups. No local terminal or Mac is required.
-3. Only a passing browser build is published automatically to `gh-pages`.
+3. Only a passing browser build is published automatically using GitHub's official
+   Pages deployment action.
 4. Open the Pages URL in **Safari** on your iPhone/iPad. For a more app-like
    experience, Share → Add to Home Screen. Play, report the build ID from the
    menu, and attach a screenshot or downloaded diagnostics when something fails.
@@ -23,8 +24,12 @@ integer-centered voxel coordinates, material identifiers, and action meanings.
 
 Repository owner: open
 <https://github.com/nobothehobo/luanti-space/settings/pages>.
-Set **Source → Deploy from a branch**, **Branch → gh-pages**, **Folder → /(root)**,
-then Save. Wait for GitHub's Pages deployment to finish.
+Set **Source → GitHub Actions**. Our workflow is already supplied; do not create
+another starter workflow. If the existing run's publish job failed because Pages
+was disabled, open that run in Actions and select **Re-run failed jobs**.
+Wait for GitHub's Pages deployment to finish. If GitHub reports an environment
+branch restriction, allow `codex/space-flight-foundation` in the `github-pages`
+environment's deployment branches (or merge the reviewed PR into `master`).
 
 Expected address after deployment:
 <https://nobothehobo.github.io/luanti-space/>.

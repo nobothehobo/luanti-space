@@ -58,24 +58,25 @@ jobs:
         with:
           name: space-browser-download
           path: build/space-browser.zip
+      - name: Prepare tested GitHub Pages artifact
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/space-web/
   publish:
     needs: test
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-24.04
     permissions:
-      contents: write
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     concurrency:
       group: space-web-publish
       cancel-in-progress: false
     steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: space-browser-build
-          path: public
-      - name: Publish tested files to GitHub Pages branch
-        uses: peaceiris/actions-gh-pages@v4
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: public
-          publish_branch: gh-pages
-          commit_message: "Publish tested Space browser build"
+      - name: Deploy tested game to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

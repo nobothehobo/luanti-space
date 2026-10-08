@@ -27,6 +27,14 @@ the existence of that test is not a passing result. Real iPhone/iPad Safari, GPU
 storage eviction, thermals and Home Screen behavior remain **unverified** until
 the published HTTPS game is played on physical devices.
 
+2026-10-08 follow-up: previous cloud run `37693226447` passed the three Chromium
+cases and reached WebKit's offline reload, where Playwright's known
+[offline-emulation bug #42775](https://github.com/microsoft/playwright/issues/42775)
+produced an internal error. The test now disconnects the real local HTTP origin,
+asserts that connections were refused, and still requires a cached reload and
+preserved world edits. This is not an offline-test skip. Updated cloud results
+must be inspected before declaring WebKit success.
+
 GitHub Pages requires the owner's one-time publishing-source selection. There
 is no claim that an expected URL is live before successful deployment. The
 browser is local solo and does not join native Luanti servers.
