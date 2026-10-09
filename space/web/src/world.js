@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LGPL-2.1-or-later
 // This local authority is NOT the Luanti multiplayer server. A future transport
 // must perform these validations remotely; never accept browser world authority.
-import { DESTINATIONS, planetMaterial } from "./exploration.js";
+import { DESTINATIONS, planetMaterial, dockMaterial } from "./exploration.js";
 export const PALETTE = [
   { name: "space_core:alloy", title: "Pearl alloy", color: [0.76, 0.84, 0.86] },
   { name: "space_core:slate", title: "Basalt", color: [0.24, 0.32, 0.39] },
@@ -48,7 +48,7 @@ export function materialAt(spec, p) {
     if (depth === 0 && (x + z) % 11 === 0) return 4;
     return depth === 0 ? 1 : 2;
   }
-  return spec.exploration ? planetMaterial(p) : 0;
+  return spec.exploration ? dockMaterial(p) || planetMaterial(p) : 0;
 }
 export function overlapsPlayer(p, feet) {
   return (
@@ -85,6 +85,15 @@ export class World {
           ) {
             const p = [x, y, z],
               id = materialAt(spec, p);
+            if (id) this.set(p, { id, rotation: 0 }, false);
+          }
+    }
+    if (spec.exploration) {
+      for (let x = 198; x <= 222; x++)
+        for (let y = 108; y <= 111; y++)
+          for (let z = 88; z <= 112; z++) {
+            const p = [x, y, z],
+              id = dockMaterial(p);
             if (id) this.set(p, { id, rotation: 0 }, false);
           }
     }

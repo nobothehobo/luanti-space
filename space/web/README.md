@@ -144,3 +144,19 @@ physical-device gate is playing the published HTTPS build on your iPhone/iPad.
 All new browser code and procedural visuals are original; source is
 LGPL-2.1-or-later under repository `LICENSE.txt`. No third-party runtime engine
 or assets are bundled. Playwright is a development-only Apache-2.0 dependency.
+
+### Orbital opening and existing saves
+
+Fresh browser worlds now start at a compact orbital shipyard at `[210,114,100]`,
+with the starter hull nearby and Morrow in the forward view. The old islands
+remain available so existing terrain edits survive. Continue preserves the saved
+location. **Recall ship & launch toward destination** explicitly moves the existing
+hull to the orbital berth, preserves its design and battery banks, boards it and
+points the camera toward the selected destination. It refuses an occupied berth.
+Visit shipyard moves only the player; it does not retrieve a distant ship.
+
+`update.html` deliberately stays outside the offline shell. Existing Safari users
+can open it and install a complete new service worker without clearing storage.
+This changes the opening, not the scope: the two destinations are bounded
+planetoids, not huge streamed planets. Multiplayer and native ship parity remain
+future work.

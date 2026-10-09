@@ -160,3 +160,29 @@ test("key-only iPad keyboard events map to the same abstract bindings", () => {
   assert.equal(keyCode({ key: "Control", code: "" }), "ControlLeft");
   assert.equal(keyCode({ key: "x", code: "KeyX" }), "KeyX");
 });
+
+test("orbital berth has a build target, clear starter hull and legacy terrain unchanged", async () => {
+  const { EXPEDITION_SPAWN, DOCK_SHIP_POSITION, DOCK_VIEW, dockMaterial } =
+    await import("../src/exploration.js");
+  const { raycast, overlapsPlayer } = await import("../src/world.js");
+  const { eye, basis } = await import("../src/flight.js");
+  const w = new World({ generator: 1, islands: [], exploration: 1 });
+  const s = new Ship();
+  s.position = [...DOCK_SHIP_POSITION];
+  assert.equal(s.collides(w, s.position), false);
+  assert.ok(
+    raycast(
+      w,
+      eye(EXPEDITION_SPAWN),
+      basis(DOCK_VIEW.yaw, DOCK_VIEW.pitch).forward,
+    ),
+  );
+  assert.equal(
+    [...w.cells.keys()].some((k) =>
+      overlapsPlayer(k.split(",").map(Number), EXPEDITION_SPAWN),
+    ),
+    false,
+  );
+  assert.equal(dockMaterial([0, 30, 0]), 0);
+  assert.equal(materialAt({ islands: [] }, [210, 111, 100]), 0);
+});

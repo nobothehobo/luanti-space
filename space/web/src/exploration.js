@@ -43,3 +43,19 @@ export function nearestDestination(p) {
     ),
   })).sort((a, b) => a.distance - b.distance)[0];
 }
+
+// Browser-only orbital shipyard. Keep the original islands for existing builds.
+export const EXPEDITION_SPAWN = [210, 114, 100];
+export const DOCK_SHIP_POSITION = [218, 117, 104];
+export const DOCK_VIEW = { yaw: 0.7, pitch: -0.55 };
+export function dockMaterial([x, y, z]) {
+  x -= 210;
+  z -= 100;
+  if (Math.abs(x) > 12 || Math.abs(z) > 12) return 0;
+  if (y === 111)
+    return Math.abs(x) === 12 || Math.abs(z) === 12 ? 3 : x % 6 === 0 ? 4 : 1;
+  // Slender underside beams rather than another floating terrain island.
+  if (y >= 108 && y <= 110 && (Math.abs(x) === 10 || Math.abs(z) === 10))
+    return 2;
+  return 0;
+}

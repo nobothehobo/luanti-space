@@ -75,6 +75,18 @@ async function run(type, options, label) {
     await page.waitForFunction(() => spaceDebug().running);
     const initial = await page.evaluate(() => spaceDebug());
     assert.ok(initial.target, "Initial aim must resolve a surface");
+    assert.deepEqual(
+      initial.ship.position,
+      [218, 117, 104],
+      "Fresh expedition uses orbital berth",
+    );
+    assert.ok(
+      initial.feet[0] > 190,
+      "Fresh world opens beyond the old islands",
+    );
+    await page.screenshot({
+      path: path.join(evidence, `${label}-orbital-opening.png`),
+    });
     if (label === "desktop") {
       await page.keyboard.down("Space");
       await sleep(500);
@@ -162,7 +174,9 @@ async function run(type, options, label) {
     assert.equal(state.edits.length, 1);
     assert.equal(state.edits[0].id, 3);
     assert.equal(state.edits[0].rotation, 1);
-    await page.screenshot({ path: path.join(evidence, `${label}-garden.png`) });
+    await page.screenshot({
+      path: path.join(evidence, `${label}-shipyard.png`),
+    });
     await page.click("#undo");
     assert.equal((await page.evaluate(() => spaceDebug())).edits.length, 0);
     await sleep(180);
@@ -304,6 +318,36 @@ async function run(type, options, label) {
       });
       await page.click("#menu");
     }
+    if (label === "desktop") {
+      const beforeRecall = await page.evaluate(() => spaceDebug().ship);
+      await page.click("#launch");
+      await page.waitForFunction(
+        () => spaceDebug().piloting && spaceDebug().running,
+      );
+      const recalled = await page.evaluate(() => spaceDebug().ship);
+      assert.deepEqual(
+        recalled.cells,
+        beforeRecall.cells,
+        "Recall preserves the custom hull",
+      );
+      assert.equal(
+        recalled.energy,
+        beforeRecall.energy,
+        "Recall preserves main charge",
+      );
+      assert.equal(
+        recalled.solar,
+        beforeRecall.solar,
+        "Recall preserves solar charge",
+      );
+      assert.deepEqual(recalled.position, [218, 117, 104]);
+      await page.click("#menu");
+    }
+    const updater = await context.newPage();
+    await updater.goto(`http://127.0.0.1:${server.address().port}/update.html`);
+    await updater.click("#update");
+    await updater.locator("#return").waitFor({ state: "visible" });
+    await updater.close();
     const persistedShip = await page.evaluate(() => spaceDebug().ship);
     const download = page.waitForEvent("download");
     await page.click("#export");

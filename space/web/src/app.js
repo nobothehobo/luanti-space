@@ -8,8 +8,13 @@ import {
   overlapsPlayer,
 } from "./world.js";
 import { Ship } from "./ship.js";
-import { DESTINATIONS } from "./exploration.js";
-import { advance, basis, eye, SPAWN } from "./flight.js";
+import {
+  DESTINATIONS,
+  EXPEDITION_SPAWN,
+  DOCK_SHIP_POSITION,
+  DOCK_VIEW,
+} from "./exploration.js";
+import { advance, basis, eye } from "./flight.js";
 import { Input } from "./input.js";
 import { Renderer } from "./renderer.js";
 import { SAVE_KEY, snapshot, validateSave, restore } from "./save.js";
@@ -20,7 +25,8 @@ let world,
   input,
   spec,
   ship = new Ship(),
-  player = { feet: [...SPAWN], yaw: 0, pitch: -0.8, velocity: [0, 0, 0] };
+  player = { feet: [...EXPEDITION_SPAWN], ...DOCK_VIEW, velocity: [0, 0, 0] };
+ship.position = [...DOCK_SHIP_POSITION];
 let settings = {
   id: 1,
   rotation: 0,
@@ -242,26 +248,50 @@ $("#starter").addEventListener("click", () => {
   save();
   message("Starter hull pasted beside you");
 });
+$("#launch").addEventListener("click", () => {
+  if (!ready || saveBlocked) return;
+  // Explicit relocation preserves the custom hull, battery banks and terrain.
+  if (ship.collides(world, DOCK_SHIP_POSITION)) {
+    message(
+      "Shipyard berth is occupied. Move those blocks before recalling your ship.",
+    );
+    return;
+  }
+  ship.position = [...DOCK_SHIP_POSITION];
+  ship.velocity = [0, 0, 0];
+  ship.piloting = false;
+  player.feet = [...EXPEDITION_SPAWN];
+  ship.board(player);
+  $("#course").click();
+  save();
+  $("#play").click();
+  message(
+    "Depart the orbital shipyard · forward to travel · exit to build your hull",
+  );
+});
 $("#home").addEventListener("click", () => {
-  player.feet = [...SPAWN];
+  player.feet = [...EXPEDITION_SPAWN];
   player.velocity = [0, 0, 0];
-  player.yaw = 0;
-  player.pitch = -0.8;
+  player.yaw = DOCK_VIEW.yaw;
+  player.pitch = DOCK_VIEW.pitch;
   ship.piloting = false;
   ship.velocity = [0, 0, 0];
   save();
-  message("Back at the launch island");
+  message("Back at the orbital shipyard");
 });
 $("#export").addEventListener("click", () => {
   if (!ready) {
-    message("The garden is still loading.");
+    message("The expedition is still loading.");
     return;
   }
   const data =
     saveBlocked && storedBackup
       ? storedBackup
       : JSON.stringify(snapshot(world, player, settings, ship), null, 2);
-  download(`space-garden-${new Date().toISOString().slice(0, 10)}.json`, data);
+  download(
+    `space-expedition-${new Date().toISOString().slice(0, 10)}.json`,
+    data,
+  );
   message("Backup downloaded. Keep it in Files.");
 });
 $("#import").addEventListener("change", async (e) => {
