@@ -116,7 +116,7 @@ the native iOS port after this phone-playable foundation is evaluated.
 
 Controller input, multiplayer, infinite streaming, blueprint tools, mobile
 hardware/thermal certification and full native-Luanti parity are not implemented.
-The browser garden has a ±1000-cell bound and a 20,000 changed-cell save limit;
+The browser sector has a ±1000-cell bound and a 20,000 changed-cell save limit;
 this is not the eventual large-world architecture. Browser storage can be
 evicted/cleared by iOS, and private browsing may not retain it. Export backups.
 Backgrounding pauses input/movement. Home-screen and Safari saves may be separate.
@@ -147,8 +147,9 @@ or assets are bundled. Playwright is a development-only Apache-2.0 dependency.
 
 ### Orbital opening and existing saves
 
-Fresh browser worlds now start at a compact orbital shipyard at `[210,114,100]`,
-with the starter hull nearby and Morrow in the forward view. The old islands
+Fresh browser worlds now open aboard the starter hull at a compact orbital
+shipyard, facing Morrow. Visit shipyard provides a construction view at
+`[210,114,100]`. The old islands
 remain available so existing terrain edits survive. Continue preserves the saved
 location. **Recall ship & launch toward destination** explicitly moves the existing
 hull to the orbital berth, preserves its design and battery banks, boards it and

@@ -73,8 +73,12 @@ async function run(type, options, label) {
     await page.waitForFunction(() => window.spaceDebug, { timeout: 30000 });
     await page.click("#play");
     await page.waitForFunction(() => spaceDebug().running);
-    const initial = await page.evaluate(() => spaceDebug());
-    assert.ok(initial.target, "Initial aim must resolve a surface");
+    let initial = await page.evaluate(() => spaceDebug());
+    assert.equal(
+      initial.piloting,
+      true,
+      "Fresh expedition begins aboard its ship",
+    );
     assert.deepEqual(
       initial.ship.position,
       [218, 117, 104],
@@ -87,6 +91,11 @@ async function run(type, options, label) {
     await page.screenshot({
       path: path.join(evidence, `${label}-orbital-opening.png`),
     });
+    await page.click("#menu");
+    await page.click("#home");
+    await page.click("#play");
+    initial = await page.evaluate(() => spaceDebug());
+    assert.ok(initial.target, "Shipyard build view resolves a surface");
     if (label === "desktop") {
       await page.keyboard.down("Space");
       await sleep(500);

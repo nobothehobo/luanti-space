@@ -530,6 +530,13 @@ async function start() {
     $("#play").textContent = storedBackup
       ? "Continue expedition"
       : "Begin expedition";
+    if (!storedBackup && !saveBlocked) {
+      // A new expedition opens aboard its starter ship, facing the destination.
+      // Existing saves keep their position and pilot state until explicit recall.
+      ship.board(player);
+      $("#course").click();
+      $("#play").textContent = "Launch starter ship";
+    }
     const versionLabel = document.createElement("p");
     versionLabel.className = "note";
     versionLabel.textContent = `Build ${buildInfo.revision}`;
