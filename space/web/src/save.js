@@ -6,6 +6,7 @@ import {
   materialAt,
   MATERIAL_IDS,
 } from "./world.js";
+import { DESTINATIONS } from "./exploration.js";
 import { blocked } from "./flight.js";
 import { Ship } from "./ship.js";
 export const SAVE_KEY = "luanti-space-browser-v1";
@@ -87,6 +88,13 @@ export function validateSave(raw, spec) {
     throw new Error("Invalid settings");
   if (s.camera !== undefined && !["chase", "cockpit"].includes(s.camera))
     throw Error("Invalid camera mode");
+  if (
+    s.destination !== undefined &&
+    (!Number.isInteger(s.destination) ||
+      s.destination < 0 ||
+      s.destination >= DESTINATIONS.length)
+  )
+    throw Error("Invalid destination");
   if (
     s.controls !== undefined &&
     !["auto", "touch", "keyboard"].includes(s.controls)

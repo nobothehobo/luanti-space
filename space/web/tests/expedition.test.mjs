@@ -310,3 +310,19 @@ test("rotated hull preview and commands reject intersections with terrain", asyn
   assert.equal(result.reason, "Hull would intersect terrain");
   assert.equal(s.cells.size, before);
 });
+
+test("selected destination and flight camera survive saves; invalid destination rejects", () => {
+  const w = empty(),
+    s = new Ship(),
+    raw = snapshot(
+      w,
+      player(),
+      { ...settings, destination: 2, camera: "cockpit" },
+      s,
+    );
+  const result = restore(empty(), raw);
+  assert.equal(result.settings.destination, 2);
+  assert.equal(result.settings.camera, "cockpit");
+  raw.settings.destination = 99;
+  assert.throws(() => validateSave(raw, w.spec));
+});

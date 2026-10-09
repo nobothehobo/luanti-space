@@ -37,6 +37,7 @@ let settings = {
   gentle: false,
   controls: "auto",
   camera: "chase",
+  destination: 2,
 };
 let ready = false,
   running = false,
@@ -115,6 +116,7 @@ function download(name, data, type = "application/json") {
   setTimeout(() => URL.revokeObjectURL(url), 10000);
 }
 function syncSettings() {
+  $("#destination").value = settings.destination ?? 0;
   $("#sensitivity").value = settings.sensitivity;
   $("#quality").value = settings.quality;
   $("#gentle").checked = settings.gentle;
@@ -219,6 +221,10 @@ $("#power").addEventListener("click", () => {
       ? "Main battery ON · thrust enabled"
       : "Main battery OFF · solar reserve recharges main · thrust disabled",
   );
+});
+$("#destination").addEventListener("change", (event) => {
+  settings.destination = Number(event.target.value);
+  save();
 });
 function setCourse(notify = true) {
   const destination = DESTINATIONS[Number($("#destination").value)];

@@ -249,6 +249,11 @@ async function run(type, options, label) {
       1,
       "Save/reload",
     );
+    assert.equal(
+      await page.locator("#destination").inputValue(),
+      "2",
+      "Selected planet survives reload",
+    );
     // Exercise the public expedition controls, not a debug movement shortcut.
     await page.click("#play");
     await page.keyboard.press("KeyV");
