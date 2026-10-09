@@ -233,34 +233,28 @@ async function run(type, options, label) {
       };
     });
     const beforeDrag = await page.evaluate(() => spaceDebug().yaw);
-    await page
-      .locator("#view")
-      .dispatchEvent("pointerdown", {
-        pointerType: "mouse",
-        pointerId: 30,
-        button: 0,
-        clientX: 200,
-        clientY: 180,
-        bubbles: true,
-      });
-    await page
-      .locator("#view")
-      .dispatchEvent("pointermove", {
-        pointerType: "mouse",
-        pointerId: 30,
-        clientX: 240,
-        clientY: 180,
-        bubbles: true,
-      });
-    await page
-      .locator("#view")
-      .dispatchEvent("pointerup", {
-        pointerType: "mouse",
-        pointerId: 30,
-        clientX: 240,
-        clientY: 180,
-        bubbles: true,
-      });
+    await page.locator("#view").dispatchEvent("pointerdown", {
+      pointerType: "mouse",
+      pointerId: 30,
+      button: 0,
+      clientX: 200,
+      clientY: 180,
+      bubbles: true,
+    });
+    await page.locator("#view").dispatchEvent("pointermove", {
+      pointerType: "mouse",
+      pointerId: 30,
+      clientX: 240,
+      clientY: 180,
+      bubbles: true,
+    });
+    await page.locator("#view").dispatchEvent("pointerup", {
+      pointerType: "mouse",
+      pointerId: 30,
+      clientX: 240,
+      clientY: 180,
+      bubbles: true,
+    });
     assert.notEqual(
       (await page.evaluate(() => spaceDebug())).yaw,
       beforeDrag,
@@ -271,10 +265,46 @@ async function run(type, options, label) {
       false,
       "Keyboard/trackpad hides touch in auto mode",
     );
+    await sleep(180); // Allow the throttled HUD to reflect exit/power state.
     await page.screenshot({
       path: path.join(evidence, `${label}-expedition.png`),
     });
     await page.click("#menu");
+    if (label === "desktop") {
+      await page.click("#play");
+      await page.keyboard.press("KeyV");
+      await page.waitForFunction(() => spaceDebug().piloting);
+      await page.click("#menu");
+      await page.selectOption("#destination", "0");
+      await page.click("#course");
+      await page.click("#play");
+      await page.keyboard.down("KeyW");
+      await page.keyboard.down("ShiftLeft");
+      // Boost is a short burst, not free unlimited travel. Cruise uses less power.
+      await page.waitForFunction(() => spaceDebug().ship.energy < 65);
+      await page.keyboard.up("ShiftLeft");
+      await page.waitForFunction(
+        () => {
+          const p = spaceDebug().ship.position;
+          return Math.hypot(p[0] - 350, p[1] - 65, p[2] - 260) < 40;
+        },
+        null,
+        { timeout: 65000 },
+      );
+      await page.keyboard.up("KeyW");
+      await page.keyboard.up("ShiftLeft");
+      await page.waitForFunction(
+        () => Math.hypot(...spaceDebug().velocity) < 0.1,
+      );
+      await page.keyboard.press("KeyV");
+      await page.waitForFunction(() => !spaceDebug().piloting);
+      await sleep(250);
+      await page.screenshot({
+        path: path.join(evidence, "desktop-morrow-arrival.png"),
+      });
+      await page.click("#menu");
+    }
+    const persistedShip = await page.evaluate(() => spaceDebug().ship);
     const download = page.waitForEvent("download");
     await page.click("#export");
     const backup = await download;
@@ -328,6 +358,11 @@ async function run(type, options, label) {
       1,
       "Offline reload",
     );
+    assert.deepEqual(
+      (await page.evaluate(() => spaceDebug())).ship,
+      persistedShip,
+      "Hull, arrival pose and battery banks survive offline reload",
+    );
     assert.ok(
       refusedRequests > beforeOutage,
       "Origin was actually unreachable",
@@ -335,7 +370,7 @@ async function run(type, options, label) {
     assert.deepEqual(errors, []);
     assert.deepEqual((await page.evaluate(() => spaceDebug())).errors, []);
     console.log(
-      `PASS ${label}: input, build/remove/rotate, undo/redo, save/reload, backup, rejected import, offline`,
+      `PASS ${label}: input/trackpad, build/remove/rotate, ship/power, undo/redo, save/reload, backup, rejected import, offline${label === "desktop" ? ", Morrow arrival" : ""}`,
     );
     await context.close();
   } finally {

@@ -402,6 +402,9 @@ body.touch #touch-controls {
     left: calc(16px + env(safe-area-inset-left));
     right: calc(16px + env(safe-area-inset-right));
   }
+  #toast {
+    top: calc(180px + env(safe-area-inset-top));
+  }
   header strong {
     font-size: 20px;
   }
