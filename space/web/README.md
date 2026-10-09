@@ -39,14 +39,15 @@ No Apple account, paid signing, new hosting account or local computer is needed.
 
 ## Implemented browser foundation
 
-### First Expedition (2026-10-08)
+### Orbital Expedition
 
-The launch islands are now the starting outpost, not the final game identity.
-Two original voxel planetoids, Morrow and Ember, sit hundreds of meters away.
-Chart a course in Menu (this turns the view; it does not teleport), board within
-12 m using **Pilot ship / V**, then fly forward. Morrow is roughly a 30-second
-cruise from the outpost; the route between the two worlds is longer. Boost helps
-but uses considerably more energy. Surface exploration remains gravity-free.
+Fresh worlds open aboard the survey skiff at the orbital shipyard, facing Aster,
+a 240-metre-wide voxel planet. Morrow and Ember remain smaller legacy moons.
+Chart a course in Menu (sets the steering target, not a teleport), board within
+12 m using **Pilot ship / V**, then apply forward thrust. Cruise is 14 m/s and
+boost 42 m/s, with gradual acceleration and a powered four-metre departure lift
+at the orbital berth. Ship yaw/pitch follow your look with limited turn rates;
+chase view shows the hull. Surface exploration remains gravity-free.
 
 **Terrain / Hull** chooses the construction grid. Park, exit and fly alongside
 the hull to customize it with the same preview/place/remove/rotate/undo actions.
@@ -58,7 +59,7 @@ One ship is supported, with temporary 512-block / ±12-local-cell bounds.
 Main battery blocks provide 100 energy capacity each. Blue solar chargers refill
 a separate 100-unit reserve when neither hull nor terrain blocks their upward
 sunlight. Switch **Main OFF** to disable thrust and transfer reserve energy into
-main batteries. Stock chargers supply 6 units/second, transfer is capped at 12;
+main batteries. Level, unshaded stock chargers supply 6 units/second, transfer is capped at 12;
 cruise costs 0.6/second and boost 18/second while applying input. This is an
 original simple two-bank game mechanic, not a real electrical simulation. Pause
 and backgrounding stop simulation, including charging. Saves retain both banks,
@@ -70,11 +71,12 @@ reliable continuous build/remove without secondary-click configuration. Controls
 setting offers Auto, Always touch, or Keyboard/trackpad. Auto follows actual
 input events rather than assuming every touch-capable device has no keyboard.
 
-This is a bounded browser sector: planetoid radii 32/28 m, not massive streamed
-planets. The ship translates as one rigid hull; it does not yet rotate, roll,
-break apart, simulate thruster forces/mass, dock or carry other players. Collision
-is conservative and uses all hull cells; terrain is not repeatedly edited as the
-ship moves. Larger streamed worlds, modular assembly tools, portable blueprints,
+This is a bounded browser sector: moons of radius 32/28 m and Aster of radius
+120 m. The rigid hull translates and rotates in yaw/pitch, with upright assist.
+It does not yet roll, break apart, simulate thruster forces/mass, dock or carry
+other players. Collision uses conservative rotated bounds; terrain is not
+repeatedly edited as the ship moves. Nearby Aster render chunks stream and evict;
+legacy terrain remains resident. Larger sectors, modular assembly tools, portable blueprints,
 discovery/resources and authoritative cooperative voyages remain future work.
 Native Luanti ship/planet parity is not implemented by this browser milestone.
 
@@ -148,7 +150,7 @@ or assets are bundled. Playwright is a development-only Apache-2.0 dependency.
 ### Orbital opening and existing saves
 
 Fresh browser worlds now open aboard the starter hull at a compact orbital
-shipyard, facing Morrow. Visit shipyard provides a construction view at
+shipyard, facing Aster. Visit shipyard provides a construction view at
 `[210,114,100]`. The old islands
 remain available so existing terrain edits survive. Continue preserves the saved
 location. **Recall ship & launch toward destination** explicitly moves the existing
@@ -158,9 +160,8 @@ Visit shipyard moves only the player; it does not retrieve a distant ship.
 
 `update.html` deliberately stays outside the offline shell. Existing Safari users
 can open it and install a complete new service worker without clearing storage.
-This changes the opening, not the scope: the three destinations are bounded
-planetoids, not huge streamed planets. Multiplayer and native ship parity remain
-future work.
+Aster now streams nearby voxel terrain within the bounded sector. Multiplayer,
+large regional worlds and native ship parity remain future work.
 
 
 ### Flight, sky and Aster update

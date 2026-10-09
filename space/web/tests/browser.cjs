@@ -95,6 +95,17 @@ async function run(type, options, label) {
       initial.feet[0] > 190,
       "Fresh world opens beyond the old islands",
     );
+    if (label === "phone-landscape") {
+      const nav = await page.locator("#navigation").boundingBox(),
+        controls = await page.locator(".vertical").boundingBox();
+      assert.ok(
+        nav.x + nav.width <= controls.x ||
+          controls.x + controls.width <= nav.x ||
+          nav.y + nav.height <= controls.y ||
+          controls.y + controls.height <= nav.y,
+        "Flight navigation must not overlap ascend/descend controls",
+      );
+    }
     await page.screenshot({
       path: path.join(evidence, `${label}-orbital-opening.png`),
     });
@@ -314,34 +325,28 @@ async function run(type, options, label) {
     });
     // Look up into empty sky, then turn via the actual unlocked mouse adapter.
     const drag = async (dx, dy, id) => {
-      await page
-        .locator("#view")
-        .dispatchEvent("pointerdown", {
-          pointerType: "mouse",
-          pointerId: id,
-          button: 0,
-          clientX: 200,
-          clientY: 180,
-          bubbles: true,
-        });
-      await page
-        .locator("#view")
-        .dispatchEvent("pointermove", {
-          pointerType: "mouse",
-          pointerId: id,
-          clientX: 200 + dx,
-          clientY: 180 + dy,
-          bubbles: true,
-        });
-      await page
-        .locator("#view")
-        .dispatchEvent("pointerup", {
-          pointerType: "mouse",
-          pointerId: id,
-          clientX: 200 + dx,
-          clientY: 180 + dy,
-          bubbles: true,
-        });
+      await page.locator("#view").dispatchEvent("pointerdown", {
+        pointerType: "mouse",
+        pointerId: id,
+        button: 0,
+        clientX: 200,
+        clientY: 180,
+        bubbles: true,
+      });
+      await page.locator("#view").dispatchEvent("pointermove", {
+        pointerType: "mouse",
+        pointerId: id,
+        clientX: 200 + dx,
+        clientY: 180 + dy,
+        bubbles: true,
+      });
+      await page.locator("#view").dispatchEvent("pointerup", {
+        pointerType: "mouse",
+        pointerId: id,
+        clientX: 200 + dx,
+        clientY: 180 + dy,
+        bubbles: true,
+      });
       await sleep(180);
     };
     await drag(0, -600, 31);

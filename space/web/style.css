@@ -549,3 +549,12 @@ body.paused #flight-status {
     bottom: calc(180px + env(safe-area-inset-bottom));
   }
 }
+
+@media (max-height: 500px) {
+  body.piloting #navigation {
+    top: auto;
+    bottom: calc(70px + env(safe-area-inset-bottom));
+    left: auto;
+    right: 24px;
+  }
+}

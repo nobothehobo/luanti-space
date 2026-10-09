@@ -220,15 +220,17 @@ $("#power").addEventListener("click", () => {
       : "Main battery OFF · solar reserve recharges main · thrust disabled",
   );
 });
-$("#course").addEventListener("click", () => {
+function setCourse(notify = true) {
   const destination = DESTINATIONS[Number($("#destination").value)];
   const d = destination.center.map((v, i) => v - eye(player.feet)[i]);
   player.yaw = (Math.atan2(d[0], d[2]) + Math.PI * 2) % (Math.PI * 2);
   player.pitch = Math.atan2(d[1], Math.hypot(d[0], d[2]));
-  message(
-    `Course toward ${destination.name}. Pilot and fly forward; no teleport.`,
-  );
-});
+  if (notify)
+    message(
+      `Course set: ${destination.name} · look to steer, forward for thrust`,
+    );
+}
+$("#course").addEventListener("click", () => setCourse());
 $("#build-mode").addEventListener("click", () => {
   buildMode = buildMode === "terrain" ? "ship" : "terrain";
   $("#build-mode").textContent = buildMode === "ship" ? "Hull" : "Terrain";
@@ -271,7 +273,7 @@ $("#launch").addEventListener("click", () => {
   ship.piloting = false;
   player.feet = [...EXPEDITION_SPAWN];
   ship.board(player);
-  $("#course").click();
+  setCourse(false);
   save();
   $("#play").click();
   message(
@@ -553,7 +555,7 @@ async function start() {
       // A new expedition opens aboard its starter ship, facing the destination.
       // Existing saves keep their position and pilot state until explicit recall.
       ship.board(player);
-      $("#course").click();
+      setCourse(false);
       ship.yaw = player.yaw;
       ship.pitch = player.pitch;
       $("#play").textContent = "Launch starter ship";
