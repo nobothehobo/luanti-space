@@ -558,7 +558,15 @@ async function start() {
       });
     if ("serviceWorker" in navigator) {
       try {
-        const registration = await navigator.serviceWorker.register("./sw.js");
+        // Reuse the installed registration offline. The updater can set
+        // updateViaCache=none, so register() again may require a network fetch.
+        const existing = await navigator.serviceWorker.getRegistration("./");
+        const registration =
+          existing || (await navigator.serviceWorker.register("./sw.js"));
+        if (existing)
+          registration.update().catch(() => {
+            // An unavailable connection leaves the complete installed shell usable.
+          });
         await navigator.serviceWorker.ready;
         const worker =
           registration.active ||
