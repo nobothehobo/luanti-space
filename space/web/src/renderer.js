@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: LGPL-2.1-or-later
-import { material, distance } from "./world.js";
+import { material, distance, raycast } from "./world.js";
+import { DESTINATIONS } from "./exploration.js";
+import { modelMatrix } from "./ship-motion.js";
 import { basis, eye } from "./flight.js";
 const FACES = [
   {
@@ -127,27 +129,29 @@ export class Renderer {
       gl,
       `
       attribute vec3 aPosition; attribute vec3 aColor; attribute vec2 aUV; attribute float aKind; attribute float aRotation;
-      uniform vec3 uEye; uniform vec3 uRight; uniform vec3 uUp; uniform vec3 uForward; uniform vec3 uOffset; uniform mat4 uProjection;
-      varying vec3 vColor; varying vec2 vUV; varying float vKind; varying float vRotation; varying float vDistance;
-      void main() { vec3 d=aPosition+uOffset-uEye; gl_Position=uProjection*vec4(dot(d,uRight),dot(d,uUp),-dot(d,uForward),1.);
-        vColor=aColor; vUV=aUV; vKind=aKind; vRotation=aRotation; vDistance=length(d); }`,
+      uniform mat3 uModel; uniform vec3 uEye; uniform vec3 uRight; uniform vec3 uUp; uniform vec3 uForward; uniform vec3 uOffset; uniform mat4 uProjection;
+      varying vec3 vWorld; varying vec3 vColor; varying vec2 vUV; varying float vKind; varying float vRotation; varying float vDistance;
+      void main() { vec3 d=uModel*aPosition+uOffset-uEye; gl_Position=uProjection*vec4(dot(d,uRight),dot(d,uUp),-dot(d,uForward),1.);
+        vWorld=uModel*aPosition+uOffset; vColor=aColor; vUV=aUV; vKind=aKind; vRotation=aRotation; vDistance=length(d); }`,
       `
-      precision highp float; varying vec3 vColor; varying vec2 vUV; varying float vKind; varying float vRotation; varying float vDistance;
-      uniform float uAlpha; uniform float uPreview;
-      void main() { vec2 uv=vUV; if(vRotation>.5) uv=vec2(1.-uv.y,uv.x); if(vRotation>1.5) uv=vec2(1.-uv.y,uv.x);
+      precision highp float; varying vec3 vWorld; varying vec3 vColor; varying vec2 vUV; varying float vKind; varying float vRotation; varying float vDistance;
+      uniform vec3 uEye; uniform float uLod; uniform float uAlpha; uniform float uPreview;
+      void main() { if(uLod>.5 && distance(vWorld,uEye)<40.) discard; vec2 uv=vUV; if(vRotation>.5) uv=vec2(1.-uv.y,uv.x); if(vRotation>1.5) uv=vec2(1.-uv.y,uv.x);
         if(vRotation>2.5) uv=vec2(1.-uv.y,uv.x);
         float edge=min(min(uv.x,1.-uv.x),min(uv.y,1.-uv.y));
         vec3 c=vColor*(edge<.028?.70:1.);
         if(vKind>2.5&&vKind<3.5) c*=.77+.23*step(.16,fract(uv.x*4.));
         if(vKind>3.5&&vKind<4.5) c=mix(c,vec3(.65,1.,.94),.25);
         if(uPreview>.5) c=vColor*(edge<.04?1.:.75);
-        c=mix(c,vec3(.035,.065,.12),smoothstep(250.,800.,vDistance)); gl_FragColor=vec4(c,uAlpha); }`,
+        c=mix(c,vec3(.035,.065,.12),smoothstep(1400.,2300.,vDistance)); gl_FragColor=vec4(c,uAlpha); }`,
     );
     this.attributes = ["aPosition", "aColor", "aUV", "aKind", "aRotation"].map(
       (n) => gl.getAttribLocation(this.program, n),
     );
     this.uniforms = Object.fromEntries(
       [
+        "uLod",
+        "uModel",
         "uEye",
         "uRight",
         "uUp",
@@ -163,12 +167,77 @@ export class Renderer {
       gl,
       "attribute vec2 aPosition; varying vec2 vUV; void main(){vUV=aPosition*.5+.5;gl_Position=vec4(aPosition,1.,1.);}",
       `
-      precision mediump float; varying vec2 vUV;
-      void main(){vec3 c=mix(vec3(.08,.14,.20),vec3(.008,.018,.045),vUV.y);
-        float halo=exp(-length((vUV-vec2(.77,.68))*vec2(1.1,1.))*5.);
-        vec2 cell=floor(vUV*vec2(420.,260.)); float star=step(.996,fract(sin(dot(cell,vec2(12.9898,78.233)))*43758.5453));
-        c+=vec3(.14,.09,.05)*halo+vec3(.38,.44,.50)*star; gl_FragColor=vec4(c,1.);}`,
+      precision highp float; varying vec2 vUV;
+      uniform vec3 uRight; uniform vec3 uUp; uniform vec3 uForward; uniform float uAspect;
+      void main(){
+        vec2 ndc=vUV*2.-1.;
+        vec3 d=normalize(uForward + uRight*ndc.x*uAspect*.577350269 + uUp*ndc.y*.577350269);
+        vec3 c=mix(vec3(.025,.05,.085),vec3(.006,.012,.032),d.y*.5+.5.);
+        float halo=pow(max(0.,dot(d,normalize(vec3(.3,.5,-.8)))),24.);
+        vec2 grid=vec2((atan(d.x,d.z)/6.283185307+.5)*720.,(asin(d.y)/3.141592654+.5)*360.);
+        vec2 cell=floor(grid);
+        float seed=fract(sin(dot(cell,vec2(12.9898,78.233)))*43758.5453);
+        vec2 center=vec2(fract(seed*37.3),fract(seed*19.7))*.6+.2;
+        float star=step(.988,seed)*(1.-smoothstep(.07,.20,length(fract(grid)-center)));
+        c+=vec3(.11,.07,.035)*halo+vec3(.55,.64,.72)*star;
+        gl_FragColor=vec4(c,1.);}
+`,
     );
+    this.skyUniforms = Object.fromEntries(
+      ["uRight", "uUp", "uForward", "uAspect"].map((n) => [
+        n,
+        gl.getUniformLocation(this.sky, n),
+      ]),
+    );
+    this.planetLods = DESTINATIONS.map((p) => {
+      const vertices = [],
+        lat = 24,
+        lon = 48,
+        radius = p.radius - (p.streamed ? 7 : 2);
+      const point = (a, b) => [
+        Math.cos(a) * Math.sin(b),
+        Math.sin(a),
+        Math.cos(a) * Math.cos(b),
+      ];
+      for (let y = 0; y < lat; y++)
+        for (let x = 0; x < lon; x++) {
+          const corners = [
+            point(-Math.PI / 2 + (y * Math.PI) / lat, (x * 2 * Math.PI) / lon),
+            point(
+              -Math.PI / 2 + ((y + 1) * Math.PI) / lat,
+              (x * 2 * Math.PI) / lon,
+            ),
+            point(
+              -Math.PI / 2 + ((y + 1) * Math.PI) / lat,
+              ((x + 1) * 2 * Math.PI) / lon,
+            ),
+            point(
+              -Math.PI / 2 + (y * Math.PI) / lat,
+              ((x + 1) * 2 * Math.PI) / lon,
+            ),
+          ];
+          for (const i of [0, 1, 2, 0, 2, 3]) {
+            const n = corners[i],
+              light =
+                0.45 + 0.55 * Math.max(0, n[1] * 0.8 + n[0] * 0.3 + n[2] * 0.3);
+            vertex(
+              vertices,
+              n.map((v, j) => v * radius + p.center[j]),
+              p.color.map((v) => v * light),
+              [0.5, 0.5],
+              { id: -1, rotation: 0 },
+            );
+          }
+        }
+      const buffer = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+      gl.bufferData(
+        gl.ARRAY_BUFFER,
+        new Float32Array(vertices),
+        gl.STATIC_DRAW,
+      );
+      return { planet: p, buffer, count: vertices.length / 10 };
+    });
     this.skyAttribute = gl.getAttribLocation(this.sky, "aPosition");
     this.skyBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, this.skyBuffer);
@@ -228,7 +297,7 @@ export class Renderer {
       );
     }
   }
-  render(player, target, valid, settings, ship = null) {
+  render(player, target, valid, settings, ship = null, dt = 1 / 60) {
     const gl = this.gl,
       canvas = this.canvas,
       ratio = Math.min(
@@ -241,11 +310,57 @@ export class Renderer {
       canvas.width = w;
       canvas.height = h;
     }
+    let camera = player,
+      cameraEye = eye(player.feet);
+    if (ship?.piloting) {
+      if (settings.camera !== "cockpit") {
+        const desired = ship.global([0, 4, -15]),
+          anchor = ship.global([0, 2, -1]);
+        // Stop the chase camera at terrain. Camera motion never changes player/ship state.
+        const d = desired.map((v, i) => v - anchor[i]),
+          length = Math.hypot(...d);
+        const hit = raycast(this.world, anchor, d, length);
+        const clipped = hit
+          ? anchor.map(
+              (v, i) => v + (d[i] * Math.max(0, hit.distance - 0.7)) / length,
+            )
+          : desired;
+        if (
+          !this.cameraEye ||
+          this.cameraSource !== ship ||
+          distance(this.cameraEye, clipped) > 60
+        )
+          this.cameraEye = clipped;
+        const smoothing = 1 - Math.exp(-8 * Math.min(0.1, dt));
+        this.cameraEye = this.cameraEye.map(
+          (v, i) => v + (clipped[i] - v) * smoothing,
+        );
+        cameraEye = this.cameraEye;
+        const target = ship.global([0, 1, 8]),
+          aim = target.map((v, i) => v - cameraEye[i]);
+        camera = {
+          yaw: Math.atan2(aim[0], aim[2]),
+          pitch: Math.atan2(aim[1], Math.hypot(aim[0], aim[2])),
+        };
+      } else {
+        camera = { yaw: ship.yaw, pitch: ship.pitch };
+        this.cameraEye = null;
+      }
+      this.cameraSource = ship;
+    } else {
+      this.cameraEye = null;
+      this.cameraSource = null;
+    }
+    const cameraBasis = basis(camera.yaw, camera.pitch);
     gl.viewport(0, 0, w, h);
     gl.clear(gl.DEPTH_BUFFER_BIT);
     gl.disable(gl.DEPTH_TEST);
     gl.disable(gl.BLEND);
     gl.useProgram(this.sky);
+    gl.uniform3fv(this.skyUniforms.uRight, cameraBasis.right);
+    gl.uniform3fv(this.skyUniforms.uUp, cameraBasis.up);
+    gl.uniform3fv(this.skyUniforms.uForward, cameraBasis.forward);
+    gl.uniform1f(this.skyUniforms.uAspect, w / h);
     gl.bindBuffer(gl.ARRAY_BUFFER, this.skyBuffer);
     gl.enableVertexAttribArray(this.skyAttribute);
     gl.vertexAttribPointer(this.skyAttribute, 2, gl.FLOAT, false, 0, 0);
@@ -253,11 +368,11 @@ export class Renderer {
     gl.useProgram(this.program);
     gl.enable(gl.DEPTH_TEST);
     gl.depthMask(true);
-    const b = basis(player.yaw, player.pitch),
-      e = eye(player.feet),
+    const b = cameraBasis,
+      e = cameraEye,
       f = 1 / Math.tan(Math.PI / 6),
       near = 0.08,
-      far = 900;
+      far = 2400;
     const projection = new Float32Array([
       f / (w / h),
       0,
@@ -284,6 +399,8 @@ export class Renderer {
       ["uForward", b.forward],
     ])
       gl.uniform3fv(this.uniforms[n], v);
+    gl.uniform1f(this.uniforms.uLod, 0);
+    gl.uniformMatrix3fv(this.uniforms.uModel, false, modelMatrix());
     gl.uniform1f(this.uniforms.uAlpha, 1);
     gl.uniform1f(this.uniforms.uPreview, 0);
     gl.uniform3fv(this.uniforms.uOffset, [0, 0, 0]);
@@ -295,6 +412,15 @@ export class Renderer {
       gl.drawArrays(gl.TRIANGLES, 0, mesh.count);
       this.drawCalls++;
     }
+    gl.uniform1f(this.uniforms.uLod, 1);
+    for (const lod of this.planetLods) {
+      // Close-up edits use voxel meshes; the interior LOD is only a distant silhouette.
+      if (distance(lod.planet.center, e) < lod.planet.radius - 10) continue;
+      this.bind(lod.buffer);
+      gl.drawArrays(gl.TRIANGLES, 0, lod.count);
+      this.drawCalls++;
+    }
+    gl.uniform1f(this.uniforms.uLod, 0);
     if (ship) {
       if (this.shipSource !== ship || this.shipRevision !== ship.revision) {
         if (this.shipBuffer) gl.deleteBuffer(this.shipBuffer);
@@ -312,11 +438,21 @@ export class Renderer {
         this.shipSource = ship;
         this.shipRevision = ship.revision;
       }
+      gl.uniformMatrix3fv(
+        this.uniforms.uModel,
+        false,
+        modelMatrix(ship.yaw, ship.pitch),
+      );
       gl.uniform3fv(this.uniforms.uOffset, ship.position);
       this.bind(this.shipBuffer);
       gl.drawArrays(gl.TRIANGLES, 0, this.shipCount);
       this.drawCalls++;
     }
+    gl.uniformMatrix3fv(
+      this.uniforms.uModel,
+      false,
+      target?.model || modelMatrix(),
+    );
     gl.uniform3fv(this.uniforms.uOffset, target?.offset || [0, 0, 0]);
     if (target) {
       const vertices = [];

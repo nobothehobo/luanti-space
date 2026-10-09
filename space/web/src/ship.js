@@ -7,8 +7,10 @@ import {
   cellValid,
   MATERIAL_IDS,
   distance,
+  raycast,
 } from "./world.js";
-import { basis } from "./flight.js";
+import { basis, blocked } from "./flight.js";
+import { rotateVector, inverseVector, turnToward } from "./ship-motion.js";
 export const SHIP_LIMIT = 512;
 export const SHIP_HOME = [8, 36, -2];
 const NEIGHBORS = [
@@ -36,20 +38,31 @@ export class Ship extends World {
     super({ generator: 1, islands: [] });
     this.position = [...SHIP_HOME];
     this.velocity = [0, 0, 0];
+    this.yaw = 0;
+    this.pitch = 0;
+    this.launchRemaining = 0;
     this.energy = 100;
     this.solar = 0;
     this.mainOn = true;
     this.piloting = false;
     this.set([0, 0, 0], { id: 5, rotation: 0 }, false);
-    for (let x = -2; x <= 2; x++)
-      for (let z = -3; z <= 3; z++)
+    // Original survey skiff: narrow bow, cockpit ribs, solar wings and twin aft pods.
+    for (let x = -1; x <= 1; x++)
+      for (let z = -4; z <= 3; z++)
         this.set([x, -1, z], { id: 1, rotation: 0 }, false);
-    for (const x of [-2, 2])
-      for (let z = -2; z <= 2; z++)
-        this.set([x, 0, z], { id: z === 0 ? 8 : 3, rotation: 0 }, false);
-    for (const x of [-1, 0, 1])
-      this.set([x, 0, 3], { id: 4, rotation: 0 }, false);
+    for (const x of [-1, 1]) {
+      for (let z = 0; z <= 2; z++)
+        this.set([x, 0, z], { id: 1, rotation: 0 }, false);
+      this.set([x, 0, -4], { id: 3, rotation: 0 }, false);
+      this.set([x, 0, -5], { id: 4, rotation: 0 }, false);
+      this.set([x * 2, -1, -1], { id: 3, rotation: 0 }, false);
+      this.set([x * 3, -1, -1], { id: 8, rotation: 0 }, false);
+    }
+    this.set([0, -1, 4], { id: 1, rotation: 0 }, false);
+    this.set([0, 0, 4], { id: 4, rotation: 0 }, false);
     this.set([0, 0, -3], { id: 9, rotation: 0 }, false);
+    this.set([0, 0, -4], { id: 1, rotation: 0 }, false);
+    this.set([0, 1, -4], { id: 3, rotation: 0 }, false);
     this.energy = 100;
   }
   capacity() {
@@ -61,20 +74,30 @@ export class Ship extends World {
       this.energy = Math.min(this.energy, this.capacity());
   }
   local(p) {
-    return p.map((v, i) => v - this.position[i]);
+    return inverseVector(
+      p.map((v, i) => v - this.position[i]),
+      this.yaw,
+      this.pitch,
+    );
   }
   global(p) {
-    return p.map((v, i) => v + this.position[i]);
+    return rotateVector(p, this.yaw, this.pitch).map(
+      (v, i) => v + this.position[i],
+    );
   }
   pose(player) {
     return {
       feet: this.local(player.feet),
       eye: this.local(player.eye),
-      direction: player.direction,
+      direction:
+        player.direction &&
+        inverseVector(player.direction, this.yaw, this.pitch),
     };
   }
   validate(p, player, placement) {
     if (this.piloting) return "Park before editing your ship";
+    if (placement && player.worldFeet && this.bodyBlocked(player.worldFeet, p))
+      return "Too close to your body";
     if (p.some((v) => Math.abs(v) > 12)) return "Starter hull size limit";
     if (placement && this.cells.size >= SHIP_LIMIT)
       return "Hull block limit reached";
@@ -115,13 +138,45 @@ export class Ship extends World {
     }
     return super.command(action, this.pose(player), selection, time);
   }
-  collides(terrain, position) {
+  bodyBlocked(feet, cell = null) {
+    const b = basis(this.yaw, this.pitch);
+    const extent = [0, 1, 2].map(
+      (i) =>
+        0.5 *
+        (Math.abs(b.right[i]) + Math.abs(b.up[i]) + Math.abs(b.forward[i])),
+    );
+    const cells = cell
+      ? [cell]
+      : [...this.cells.keys()].map((k) => k.split(",").map(Number));
+    return cells.some((p) => {
+      const c = this.global(p);
+      return (
+        c[0] + extent[0] > feet[0] - 0.3 &&
+        c[0] - extent[0] < feet[0] + 0.3 &&
+        c[1] + extent[1] > feet[1] &&
+        c[1] - extent[1] < feet[1] + 1.75 &&
+        c[2] + extent[2] > feet[2] - 0.3 &&
+        c[2] - extent[2] < feet[2] + 0.3
+      );
+    });
+  }
+  collides(terrain, position, yaw = this.yaw, pitch = this.pitch) {
+    const b = basis(yaw, pitch);
+    const ext = [0, 1, 2].map(
+      (i) =>
+        0.5 *
+        (Math.abs(b.right[i]) + Math.abs(b.up[i]) + Math.abs(b.forward[i])),
+    );
     for (const k of this.cells.keys()) {
-      const p = k.split(",").map((v, i) => Number(v) + position[i]);
-      // Continuous translated cubes overlap up to two integer cells per axis.
-      for (let x = Math.floor(p[0]); x <= Math.ceil(p[0]); x++)
-        for (let y = Math.floor(p[1]); y <= Math.ceil(p[1]); y++)
-          for (let z = Math.floor(p[2]); z <= Math.ceil(p[2]); z++)
+      const p = rotateVector(k.split(",").map(Number), yaw, pitch).map(
+        (v, i) => v + position[i],
+      );
+      // Conservative rotated cube bounds prevent terrain penetration during turns.
+      const lo = p.map((v, i) => Math.floor(v - ext[i] + 0.5 + 1e-6));
+      const hi = p.map((v, i) => Math.floor(v + ext[i] + 0.5 - 1e-6));
+      for (let x = lo[0]; x <= hi[0]; x++)
+        for (let y = lo[1]; y <= hi[1]; y++)
+          for (let z = lo[2]; z <= hi[2]; z++)
             if (terrain.get([x, y, z]).id) return true;
     }
     return false;
@@ -129,6 +184,8 @@ export class Ship extends World {
   board(player) {
     if (distance(player.feet, this.position) > 12) return false;
     this.piloting = true;
+    // A short powered vertical departure only at the orbital berth.
+    if (distance(this.position, [218, 117, 104]) < 2) this.launchRemaining = 4;
     player.feet = this.global([0, 1, -1]);
     player.velocity = [0, 0, 0];
     return true;
@@ -142,16 +199,7 @@ export class Ship extends World {
       [0, 15, 0],
     ]) {
       const p = this.global(offset);
-      let clear = true;
-      for (let y = 0; y < 3; y++)
-        if (terrain.get(p.map((v, i) => Math.round(v) + (i === 1 ? y : 0))).id)
-          clear = false;
-      if (
-        [...this.cells.keys()].some(
-          (k) => distance(k.split(",").map(Number), offset) < 2.5,
-        )
-      )
-        clear = false;
+      const clear = !blocked(terrain, p) && !this.bodyBlocked(p);
       if (clear) {
         this.piloting = false;
         this.velocity = [0, 0, 0];
@@ -172,16 +220,22 @@ export class Ship extends World {
       for (const [k, n] of this.cells)
         if (n.id === 8) {
           const p = k.split(",").map(Number);
-          let exposed = true;
-          for (let y = p[1] + 1; y <= 12; y++)
-            if (this.get([p[0], y, p[2]]).id) exposed = false;
+          const sunLocal = inverseVector([0, 1, 0], this.yaw, this.pitch);
+          let exposed =
+            sunLocal[1] > 0.1 &&
+            !raycast(
+              this,
+              p.map((v, i) => v + (i === 1 ? 0.501 : 0)),
+              sunLocal,
+              40,
+            );
           const g = this.global(p).map(Math.round);
           for (let y = g[1] + 1; y <= 1000; y++)
             if (terrain.get([g[0], y, g[2]]).id) {
               exposed = false;
               break;
             }
-          if (exposed) this.solarRate += 3;
+          if (exposed) this.solarRate += 3 * sunLocal[1];
         }
     }
     this.solar = Math.min(100, this.solar + (this.solarRate || 0) * dt);
@@ -209,7 +263,13 @@ export class Ship extends World {
         (this.piloting && powered && moving ? (boost ? 18 : 0.6) : 0) * dt,
     );
     if (!this.piloting) return;
-    const b = basis(yaw, player.pitch),
+    const nextYaw = turnToward(this.yaw, yaw, 1.4 * dt),
+      nextPitch = turnToward(this.pitch, player.pitch, 0.9 * dt);
+    if (powered && !this.collides(terrain, this.position, nextYaw, nextPitch)) {
+      this.yaw = (nextYaw + Math.PI * 2) % (Math.PI * 2);
+      this.pitch = nextPitch;
+    }
+    const b = basis(this.yaw, this.pitch),
       speed = powered ? (boost ? 42 : 14) : 0;
     let desired = b.forward.map(
       (v, i) =>
@@ -217,24 +277,39 @@ export class Ship extends World {
         b.right[i] * actions.move_right +
         (i === 1 ? Number(actions.ascend) - Number(actions.descend) : 0),
     );
+    const launching = powered && moving && this.launchRemaining > 0;
+    if (launching) desired = [0, 1, 0];
     const length = Math.max(1, Math.hypot(...desired));
-    desired = desired.map((v) => (v / length) * speed);
+    desired = desired.map((v) => (v / length) * (launching ? 4 : speed));
     const diff = desired.map((v, i) => v - this.velocity[i]),
-      factor = Math.min(1, (22 * dt) / (Math.hypot(...diff) || 1));
+      factor = Math.min(
+        1,
+        ((moving && powered ? 7 : 12) * dt) / (Math.hypot(...diff) || 1),
+      );
     this.velocity = this.velocity.map((v, i) => v + diff[i] * factor);
     for (let axis = 0; axis < 3; axis++) {
       const candidate = [...this.position];
       candidate[axis] += this.velocity[axis] * dt;
       if (Math.abs(candidate[axis]) > 950 || this.collides(terrain, candidate))
         this.velocity[axis] = 0;
-      else this.position = candidate;
+      else {
+        if (launching && axis === 1)
+          this.launchRemaining = Math.max(
+            0,
+            this.launchRemaining - (candidate[1] - this.position[1]),
+          );
+        this.position = candidate;
+      }
     }
     player.feet = this.global([0, 1, -1]);
     player.velocity = [...this.velocity];
   }
   data() {
     return {
-      version: 1,
+      version: 2,
+      yaw: this.yaw,
+      pitch: this.pitch,
+      launchRemaining: this.launchRemaining,
       position: [...this.position],
       energy: this.energy,
       solar: this.solar,
@@ -250,7 +325,7 @@ export class Ship extends World {
   static validate(raw) {
     if (
       !raw ||
-      raw.version !== 1 ||
+      ![1, 2].includes(raw.version) ||
       !Array.isArray(raw.position) ||
       raw.position.length !== 3 ||
       !raw.position.every((v) => finite(v) && Math.abs(v) <= 950) ||
@@ -261,6 +336,18 @@ export class Ship extends World {
       raw.cells.length > SHIP_LIMIT
     )
       throw Error("Invalid ship save");
+    if (
+      raw.version === 2 &&
+      (!finite(raw.yaw) ||
+        raw.yaw < 0 ||
+        raw.yaw >= Math.PI * 2 ||
+        !finite(raw.pitch) ||
+        Math.abs(raw.pitch) > 1.5 ||
+        !finite(raw.launchRemaining) ||
+        raw.launchRemaining < 0 ||
+        raw.launchRemaining > 4)
+    )
+      throw Error("Invalid ship orientation");
     if (typeof raw.piloting !== "boolean") throw Error("Invalid pilot state");
     if (
       typeof raw.mainOn !== "boolean" ||
@@ -303,6 +390,9 @@ export class Ship extends World {
     for (const e of raw.cells)
       ship.set(e.slice(0, 3), { id: e[3], rotation: e[4] }, false);
     ship.position = [...raw.position];
+    ship.yaw = raw.version === 2 ? raw.yaw : 0;
+    ship.pitch = raw.version === 2 ? raw.pitch : 0;
+    ship.launchRemaining = raw.version === 2 ? raw.launchRemaining : 0;
     ship.energy = raw.energy;
     ship.solar = raw.solar;
     ship.mainOn = raw.mainOn;

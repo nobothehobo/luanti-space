@@ -15,6 +15,8 @@ import {
   DOCK_VIEW,
 } from "./exploration.js";
 import { advance, basis, eye } from "./flight.js";
+import { streamPlanetChunks } from "./planet-stream.js";
+import { modelMatrix } from "./ship-motion.js";
 import { Input } from "./input.js";
 import { Renderer } from "./renderer.js";
 import { SAVE_KEY, snapshot, validateSave, restore } from "./save.js";
@@ -34,6 +36,7 @@ let settings = {
   quality: "balanced",
   gentle: false,
   controls: "auto",
+  camera: "chase",
 };
 let ready = false,
   running = false,
@@ -198,6 +201,11 @@ function pilot() {
   save();
 }
 $("#pilot").addEventListener("click", pilot);
+$("#camera").addEventListener("click", () => {
+  settings.camera = settings.camera === "cockpit" ? "chase" : "cockpit";
+  renderer.cameraEye = null;
+  save();
+});
 $("#power").addEventListener("click", () => {
   if (Math.hypot(...ship.position.map((v, i) => v - player.feet[i])) > 12) {
     message("Board or approach your ship to change power");
@@ -389,10 +397,7 @@ function frame(time) {
     while (accumulator >= 1 / 120) {
       ship.tick(actions, 1 / 120, player.yaw, world, player);
       if (!ship.piloting) {
-        world.bodyBlocked = (feet) =>
-          [...ship.cells.keys()].some((k) =>
-            overlapsPlayer(ship.global(k.split(",").map(Number)), feet),
-          );
+        world.bodyBlocked = (feet) => ship.bodyBlocked(feet);
         advance(player, actions, 1 / 120, world, settings.gentle);
       }
       accumulator -= 1 / 120;
@@ -425,13 +430,24 @@ function frame(time) {
       : buildMode === "ship"
         ? "Aim at your parked hull"
         : "Aim at terrain to build";
-  if (target && buildMode === "ship") target.offset = ship.position;
-  renderer.render(player, target, !reason, settings, ship);
+  if (target && buildMode === "ship") {
+    target.offset = ship.position;
+    target.model = modelMatrix(ship.yaw, ship.pitch);
+  }
+  streamPlanetChunks(world, player.feet);
+  document.body.classList.toggle("piloting", ship.piloting);
+  renderer.render(player, target, !reason, settings, ship, dt);
   if (time - lastHud > 120) {
     lastHud = time;
     const speed = Math.hypot(...player.velocity);
+    $("#camera").textContent =
+      settings.camera === "cockpit" ? "Cockpit view" : "Chase view";
+    $("#flight-status").textContent =
+      ship.launchRemaining > 0
+        ? "Departure ready · hold forward to lift clear"
+        : "Steer by looking · release movement to brake and hover";
     $("#speed").textContent =
-      `${ship.piloting ? "SHIP" : speed < 0.1 ? "HOVER" : "FLIGHT"} · ${speed.toFixed(1)} m/s`;
+      `${ship.piloting ? (ship.launchRemaining > 0 ? "DEPARTURE" : "SHIP") : speed < 0.1 ? "HOVER" : "FLIGHT"} · ${speed.toFixed(1)} m/s`;
     $("#power").textContent =
       `Main ${ship.mainOn ? "ON" : "OFF"} · ${Math.round(ship.energy)}/${ship.capacity()} · solar ${Math.round(ship.solar)}`;
     const destination = DESTINATIONS[Number($("#destination").value)];
@@ -531,10 +547,13 @@ async function start() {
       ? "Continue expedition"
       : "Begin expedition";
     if (!storedBackup && !saveBlocked) {
+      $("#destination").value = "2";
       // A new expedition opens aboard its starter ship, facing the destination.
       // Existing saves keep their position and pilot state until explicit recall.
       ship.board(player);
       $("#course").click();
+      ship.yaw = player.yaw;
+      ship.pitch = player.pitch;
       $("#play").textContent = "Launch starter ship";
     }
     const versionLabel = document.createElement("p");

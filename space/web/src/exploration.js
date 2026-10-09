@@ -15,12 +15,24 @@ export const DESTINATIONS = [
     color: [0.74, 0.43, 0.3],
     description: "Warm mineral ridges and a signal ruin",
   },
+  {
+    name: "Aster",
+    center: [650, 130, -200],
+    radius: 120,
+    color: [0.74, 0.43, 0.3],
+    streamed: true,
+    description: "Broad ochre uplands, basalt valleys and a survey station",
+  },
 ];
-export function planetMaterial(p) {
+export function planetMaterial(p, streamedOnly = false) {
   for (const planet of DESTINATIONS) {
+    if (streamedOnly && !planet.streamed) continue;
     const d = p.map((v, i) => v - planet.center[i]);
-    const radius =
-      planet.radius + Math.sin(d[0] * 0.32) * Math.cos(d[2] * 0.27) * 1.4;
+    if (d.some((v) => Math.abs(v) > planet.radius + 10)) continue;
+    const relief = planet.streamed
+      ? 4.7 * Math.sin(d[0] * 0.065) * Math.cos(d[2] * 0.07)
+      : 1.4 * Math.sin(d[0] * 0.32) * Math.cos(d[2] * 0.27);
+    const radius = planet.radius + relief;
     const length = Math.hypot(...d);
     if (length <= radius)
       return length > radius - 2 ? (planet.name === "Morrow" ? 6 : 7) : 2;

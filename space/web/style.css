@@ -494,3 +494,58 @@ body.touch #touch-controls {
     margin: 8px 0;
   }
 }
+
+/* Flight exposes only flight controls; ship editing starts after disembarking. */
+#camera {
+  position: fixed;
+  right: 24px;
+  top: calc(184px + env(safe-area-inset-top));
+  font-size: 11px;
+}
+#flight-status {
+  display: none;
+  position: fixed;
+  bottom: calc(28px + env(safe-area-inset-bottom));
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 10px 16px;
+  background: var(--glass);
+  border-radius: 12px;
+  font-size: 12px;
+  max-width: 90vw;
+  text-align: center;
+  pointer-events: none;
+}
+body.piloting footer,
+body.piloting .build-controls,
+body.piloting #target-status {
+  display: none;
+}
+body.piloting #flight-status {
+  display: block;
+}
+body:not(.piloting) #camera,
+body.paused #camera,
+body.paused #flight-status {
+  display: none;
+}
+@media (max-width: 600px) {
+  #camera {
+    right: 12px;
+    top: calc(184px + env(safe-area-inset-top));
+  }
+  #flight-status {
+    font-size: 11px;
+  }
+}
+@media (max-height: 500px) {
+  #camera {
+    top: calc(180px + env(safe-area-inset-top));
+  }
+  #navigation {
+    top: calc(104px + env(safe-area-inset-top));
+  }
+  .piloting .vertical {
+    bottom: calc(180px + env(safe-area-inset-bottom));
+  }
+}

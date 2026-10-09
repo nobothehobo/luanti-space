@@ -99,6 +99,7 @@ export class World {
     }
     if (spec.exploration)
       for (const planet of DESTINATIONS) {
+        if (planet.streamed) continue;
         const [cx, cy, cz] = planet.center,
           r = planet.radius + 8;
         for (let x = cx - r; x <= cx + r; x++)
@@ -111,7 +112,13 @@ export class World {
       }
   }
   get(p) {
-    return this.cells.get(key(p)) || { id: 0, rotation: 0 };
+    return (
+      this.edits.get(key(p)) ||
+      this.cells.get(key(p)) || {
+        id: this.spec.exploration ? planetMaterial(p, true) : 0,
+        rotation: 0,
+      }
+    );
   }
   set(p, node, persist = true) {
     const k = key(p),
@@ -139,6 +146,21 @@ export class World {
       if (same(baseline, node)) this.edits.delete(k);
       else this.edits.set(k, { ...node });
       this.revision++;
+      if (this.spec.exploration && !node.id) {
+        // Mining exposes procedural interior voxels even before their render chunk loads.
+        for (const d of [
+          [1, 0, 0],
+          [-1, 0, 0],
+          [0, 1, 0],
+          [0, -1, 0],
+          [0, 0, 1],
+          [0, 0, -1],
+        ]) {
+          const next = p.map((v, i) => v + d[i]),
+            n = this.get(next);
+          if (n.id && !this.cells.has(key(next))) this.set(next, n, false);
+        }
+      }
     }
   }
   validate(p, player, placement) {

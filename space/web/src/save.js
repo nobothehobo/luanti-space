@@ -4,9 +4,9 @@ import {
   finite,
   MAX_EDITS,
   materialAt,
-  overlapsPlayer,
   MATERIAL_IDS,
 } from "./world.js";
+import { blocked } from "./flight.js";
 import { Ship } from "./ship.js";
 export const SAVE_KEY = "luanti-space-browser-v1";
 export function snapshot(world, player, settings, ship = null) {
@@ -85,6 +85,8 @@ export function validateSave(raw, spec) {
     s.rotation > 3
   )
     throw new Error("Invalid settings");
+  if (s.camera !== undefined && !["chase", "cockpit"].includes(s.camera))
+    throw Error("Invalid camera mode");
   if (
     s.controls !== undefined &&
     !["auto", "touch", "keyboard"].includes(s.controls)
@@ -106,12 +108,7 @@ export function restore(world, raw) {
   }
   // Never load a player inside a newly imported structure.
   let feet = [...s.player.feet];
-  if (
-    [...world.cells.keys()].some((k) =>
-      overlapsPlayer(k.split(",").map(Number), feet),
-    )
-  )
-    feet = [0, 34, -6];
+  if (blocked(world, feet)) feet = [0, 34, -6];
   if (ship.piloting) feet = ship.global([0, 1, -1]);
   return {
     player: { ...s.player, feet, velocity: [0, 0, 0] },

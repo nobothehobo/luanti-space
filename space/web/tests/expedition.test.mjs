@@ -75,9 +75,9 @@ test("ship travels as one pose without modifying terrain or its hull cells", () 
     p = player();
   s.board(p);
   const before = [...s.cells];
-  for (let i = 0; i < 240; i++)
+  for (let i = 0; i < 360; i++)
     s.tick({ ...idle, move_forward: 1 }, 1 / 120, 0, terrain, p);
-  assert.ok(s.position[2] > 15);
+  assert.ok(s.position[2] > 20);
   assert.deepEqual([...s.cells], before);
   assert.equal(terrain.edits.size, 0);
   assert.equal(terrain.revision, 0);
@@ -118,7 +118,12 @@ test("main off disables thrust and transfers solar into main; shading blocks cha
   const shade = new Ship();
   shade.mainOn = false;
   shade.energy = 0;
-  for (const x of [-2, 2]) shade.set([x, 1, 0], { id: 1, rotation: 0 }, false);
+  for (const [k, n] of [...shade.cells])
+    if (n.id === 8) {
+      const p = k.split(",").map(Number);
+      p[1]++;
+      shade.set(p, { id: 1, rotation: 0 }, false);
+    }
   for (let i = 0; i < 600; i++) shade.tick(idle, 1 / 120, 0, terrain, p);
   assert.equal(shade.energy, 0);
   assert.equal(shade.solar, 0);
@@ -185,4 +190,97 @@ test("orbital berth has a build target, clear starter hull and legacy terrain un
   );
   assert.equal(dockMaterial([0, 30, 0]), 0);
   assert.equal(materialAt({ islands: [] }, [210, 111, 100]), 0);
+});
+
+test("hull turns gradually, drives in its own heading, and rotated grids round-trip", async () => {
+  const { viewRay } = await import("../src/ship-motion.js");
+  const s = new Ship(),
+    p = player(),
+    w = empty();
+  s.board(p);
+  s.tick({ ...idle, move_forward: 1 }, 1 / 120, Math.PI / 2, w, p);
+  assert.ok(
+    s.yaw > 0 && s.yaw < 0.02,
+    "Steering is rate limited, not an instant camera-relative walk",
+  );
+  for (let i = 0; i < 480; i++)
+    s.tick({ ...idle, move_forward: 1 }, 1 / 120, Math.PI / 2, w, p);
+  assert.ok(s.position[0] > 35);
+  assert.ok(Math.abs(s.velocity[2]) < 0.1);
+  const local = [2, -1, 3];
+  s.pitch = 0.4;
+  const restoredLocal = s.local(s.global(local));
+  local.forEach((v, i) => assert.ok(Math.abs(v - restoredLocal[i]) < 1e-9));
+  assert.deepEqual(Ship.restore(s.data()).data(), s.data());
+  const legacy = s.data();
+  legacy.version = 1;
+  delete legacy.yaw;
+  delete legacy.pitch;
+  delete legacy.launchRemaining;
+  assert.equal(Ship.restore(legacy).yaw, 0);
+  const bad = s.data();
+  bad.yaw = NaN;
+  assert.throws(() => Ship.restore(bad));
+  assert.deepEqual(viewRay(0, 0, 0, 0, 1), [0, 0, 1]);
+  assert.ok(viewRay(Math.PI / 2, 0, 0, 0, 1)[0] > 0.999);
+  assert.ok(
+    viewRay(0, 0, 1, 0, 2)[0] > viewRay(0, 0, 1, 0, 1)[0],
+    "Sky uses perspective/aspect rather than screen pixels",
+  );
+});
+test("departure clears berth before cruise, main off freezes attitude and thrust", async () => {
+  const s = new Ship(),
+    p = player(),
+    w = empty();
+  s.position = [218, 117, 104];
+  p.feet = [218, 118, 103];
+  s.board(p);
+  for (let i = 0; i < 60; i++)
+    s.tick({ ...idle, move_forward: 1 }, 1 / 120, 0, w, p);
+  assert.ok(s.position[1] > 117);
+  assert.equal(s.position[2], 104);
+  for (let i = 0; i < 360; i++)
+    s.tick({ ...idle, move_forward: 1 }, 1 / 120, 0, w, p);
+  assert.equal(s.launchRemaining, 0);
+  assert.ok(s.position[2] > 108);
+  for (let i = 0; i < 240; i++) s.tick(idle, 1 / 120, 0, w, p);
+  s.mainOn = false;
+  const before = s.data();
+  for (let i = 0; i < 120; i++)
+    s.tick({ ...idle, move_forward: 1 }, 1 / 120, 2, w, p);
+  assert.deepEqual(s.position, before.position);
+  assert.equal(s.yaw, before.yaw);
+});
+test("large planet is solid and editable before render streaming, chunks evict without losing edits", async () => {
+  const { streamPlanetChunks } = await import("../src/planet-stream.js");
+  const large = DESTINATIONS.find((p) => p.streamed);
+  const w = new World({ generator: 1, islands: [], exploration: 1 });
+  assert.equal(large.radius, 120);
+  assert.equal(w.get(large.center).id, 2);
+  assert.ok(w.cells.size < 300000, "Do not allocate the large solid planet");
+  const surface = large.center.map((v, i) => v + (i === 1 ? large.radius : 0));
+  const nearby = surface.map((v, i) => v + (i === 1 ? 6 : 0));
+  for (let i = 0; i < 100; i++) streamPlanetChunks(w, nearby);
+  assert.ok(w.streamChunks.size > 0);
+  const renderCells = w.cells.size;
+  w.set(surface, { id: 0, rotation: 0 });
+  assert.equal(w.get(surface).id, 0);
+  const raw = snapshot(
+    w,
+    { feet: nearby, yaw: 0, pitch: 0 },
+    settings,
+    new Ship(),
+  );
+  streamPlanetChunks(w, [0, 34, -6]);
+  assert.equal(w.streamChunks.size, 0);
+  assert.ok(w.cells.size < renderCells);
+  assert.equal(
+    w.get(surface).id,
+    0,
+    "Removal cannot regenerate after eviction",
+  );
+  const restoredWorld = new World(w.spec);
+  restore(restoredWorld, raw);
+  assert.equal(restoredWorld.get(surface).id, 0);
+  assert.equal(restoredWorld.get(large.center).id, 2);
 });

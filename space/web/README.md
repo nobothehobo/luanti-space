@@ -158,6 +158,26 @@ Visit shipyard moves only the player; it does not retrieve a distant ship.
 
 `update.html` deliberately stays outside the offline shell. Existing Safari users
 can open it and install a complete new service worker without clearing storage.
-This changes the opening, not the scope: the two destinations are bounded
+This changes the opening, not the scope: the three destinations are bounded
 planetoids, not huge streamed planets. Multiplayer and native ship parity remain
 future work.
+
+
+### Flight, sky and Aster update
+
+Ships now turn gradually in yaw/pitch toward the desired look direction and move
+in their own heading. The orbital departure lifts four metres before cruise.
+Default chase view shows the full hull; the flight camera button toggles cockpit.
+Flight hides construction controls; exit to edit. The new survey skiff has a
+narrow bow, cockpit ribs, solar wings and aft pods. Existing custom hulls retain
+their cells; Paste starter ship is an explicit replacement. There is no mass,
+independent thruster-force simulation or free roll yet.
+
+Stars sample normalized world view rays, including field of view and aspect.
+Their angular positions stay fixed in the world as the camera turns. Aster has a
+120 m radius, larger surface relief and a survey station. Procedural solid terrain
+and saved edits determine collision/building independently of rendering. Nearby
+16³ render chunks load with a two-chunk frame budget and evict when leaving;
+coarse interior planet silhouettes remain visible at range. This is an initial
+bounded streaming implementation; physical iPhone memory/thermal tests and more
+refined LOD transitions still matter. Old moons and terrain are retained.

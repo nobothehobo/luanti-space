@@ -38,6 +38,8 @@
     <div id="navigation">Chart a course in Menu</div>
     <button id="pilot">Pilot ship (V)</button>
     <button id="power">Main ON · 100/100 · solar 0</button>
+    <button id="camera">Chase view</button>
+    <div id="flight-status"></div>
     <div id="reticle" aria-hidden="true">+</div>
     <div id="target-status">Aim at a hull or surface to build</div>
     <div id="toast" role="status"></div>
@@ -131,20 +133,24 @@
         <label
           >Destination
           <select id="destination">
-            <option value="0">Morrow · green highlands</option>
-            <option value="1">Ember · mineral ridges</option>
+            <option value="0">Morrow · green moon</option>
+            <option value="1">Ember · mineral moon</option>
+            <option value="2">Aster · broad planetary uplands</option>
           </select></label
         >
         <button id="course">Point toward destination</button>
         <button id="starter">Paste starter ship</button>
         <p class="note">
-          Board within 12 m. Fly forward along your view; arrows rise/fall. Main
-          power OFF disables thrust and transfers the solar reserve into main
-          batteries. Add battery blocks for capacity; exposed solar chargers
-          refill the reserve. Solar chargers need a clear upward view of the
-          sun. Switch Terrain → Hull to edit your parked ship. All hull blocks
-          stay attached to the core. This bounded sector has no gravity, orbital
-          simulation or online multiplayer yet.
+          Board within 12 m. Look to steer your hull; forward applies thrust and
+          arrows rise/fall. Chase view shows your whole ship; switch to Cockpit
+          for a closer view. The orbital departure lifts clear before forward
+          travel. Main power OFF disables thrust and transfers the solar reserve
+          into main batteries. Add battery blocks for capacity; exposed solar
+          chargers refill the reserve. Solar chargers need a clear upward view
+          of the sun. Switch Terrain → Hull to edit your parked ship. All hull
+          blocks stay attached to the core. Aster is a 240 m wide streamed voxel
+          planet; the older destinations are small moons. This bounded sector
+          has no gravity, orbital simulation or online multiplayer yet.
         </p>
       </section>
       <div class="menu-actions">

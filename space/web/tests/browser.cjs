@@ -70,7 +70,14 @@ async function run(type, options, label) {
       errors = [];
     page.on("pageerror", (e) => errors.push(e.message));
     await page.goto(`http://127.0.0.1:${server.address().port}/?test=1`);
-    await page.waitForFunction(() => window.spaceDebug, { timeout: 30000 });
+    try {
+      await page.waitForFunction(() => window.spaceDebug, null, {
+        timeout: 30000,
+      });
+    } catch (error) {
+      console.error(await page.locator("#panel").innerText());
+      throw error;
+    }
     await page.click("#play");
     await page.waitForFunction(() => spaceDebug().running);
     let initial = await page.evaluate(() => spaceDebug());
@@ -91,6 +98,19 @@ async function run(type, options, label) {
     await page.screenshot({
       path: path.join(evidence, `${label}-orbital-opening.png`),
     });
+    assert.equal(
+      await page.locator("footer").isVisible(),
+      false,
+      "Construction toolbar is hidden in flight",
+    );
+    await page.click("#camera");
+    await page.waitForFunction(
+      () => document.querySelector("#camera").textContent === "Cockpit view",
+    );
+    await page.screenshot({
+      path: path.join(evidence, `${label}-cockpit.png`),
+    });
+    await page.click("#camera");
     await page.click("#menu");
     await page.click("#home");
     await page.click("#play");
@@ -292,13 +312,58 @@ async function run(type, options, label) {
     await page.screenshot({
       path: path.join(evidence, `${label}-expedition.png`),
     });
+    // Look up into empty sky, then turn via the actual unlocked mouse adapter.
+    const drag = async (dx, dy, id) => {
+      await page
+        .locator("#view")
+        .dispatchEvent("pointerdown", {
+          pointerType: "mouse",
+          pointerId: id,
+          button: 0,
+          clientX: 200,
+          clientY: 180,
+          bubbles: true,
+        });
+      await page
+        .locator("#view")
+        .dispatchEvent("pointermove", {
+          pointerType: "mouse",
+          pointerId: id,
+          clientX: 200 + dx,
+          clientY: 180 + dy,
+          bubbles: true,
+        });
+      await page
+        .locator("#view")
+        .dispatchEvent("pointerup", {
+          pointerType: "mouse",
+          pointerId: id,
+          clientX: 200 + dx,
+          clientY: 180 + dy,
+          bubbles: true,
+        });
+      await sleep(180);
+    };
+    await drag(0, -600, 31);
+    const skyBefore = await page.screenshot({
+      path: path.join(evidence, `${label}-sky-before.png`),
+    });
+    await drag(240, 0, 32);
+    const skyAfter = await page.screenshot({
+      path: path.join(evidence, `${label}-sky-after.png`),
+    });
+    assert.notDeepEqual(
+      skyBefore,
+      skyAfter,
+      "Rendered sky responds to looking around",
+    );
     await page.click("#menu");
     if (label === "desktop") {
       await page.click("#play");
       await page.keyboard.press("KeyV");
       await page.waitForFunction(() => spaceDebug().piloting);
       await page.click("#menu");
-      await page.selectOption("#destination", "0");
+      await page.selectOption("#destination", "2");
       await page.click("#course");
       await page.click("#play");
       await page.keyboard.down("KeyW");
@@ -309,7 +374,7 @@ async function run(type, options, label) {
       await page.waitForFunction(
         () => {
           const p = spaceDebug().ship.position;
-          return Math.hypot(p[0] - 350, p[1] - 65, p[2] - 260) < 40;
+          return Math.hypot(p[0] - 650, p[1] - 130, p[2] + 200) < 138;
         },
         null,
         { timeout: 65000 },
@@ -323,7 +388,7 @@ async function run(type, options, label) {
       await page.waitForFunction(() => !spaceDebug().piloting);
       await sleep(250);
       await page.screenshot({
-        path: path.join(evidence, "desktop-morrow-arrival.png"),
+        path: path.join(evidence, "desktop-aster-arrival.png"),
       });
       await page.click("#menu");
     }
@@ -423,7 +488,7 @@ async function run(type, options, label) {
     assert.deepEqual(errors, []);
     assert.deepEqual((await page.evaluate(() => spaceDebug())).errors, []);
     console.log(
-      `PASS ${label}: input/trackpad, build/remove/rotate, ship/power, undo/redo, save/reload, backup, rejected import, offline${label === "desktop" ? ", Morrow arrival" : ""}`,
+      `PASS ${label}: input/trackpad, build/remove/rotate, ship/power, undo/redo, save/reload, backup, rejected import, offline${label === "desktop" ? ", streamed Aster arrival" : ""}`,
     );
     await context.close();
   } finally {

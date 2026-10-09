@@ -16,6 +16,8 @@ const FILES = [
   "src/save.js",
   "src/ship.js",
   "src/exploration.js",
+  "src/ship-motion.js",
+  "src/planet-stream.js",
 ];
 const SHELL_PATHS = new Set(
   FILES.map((file) => new URL(file, self.registration.scope).pathname),
@@ -26,10 +28,11 @@ self.addEventListener("install", (event) =>
       .open(CACHE)
       .then((cache) =>
         cache.addAll(
-          FILES.map((file) =>
-            new Request(new URL(file, self.registration.scope), {
-              cache: "reload",
-            }),
+          FILES.map(
+            (file) =>
+              new Request(new URL(file, self.registration.scope), {
+                cache: "reload",
+              }),
           ),
         ),
       )

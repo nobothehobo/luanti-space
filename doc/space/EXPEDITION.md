@@ -6,8 +6,11 @@ an interim phone-playable implementation; Luanti remains the native engine.
 
 ## Implemented in this browser milestone
 
-- Two original voxel planetoids, a starting outpost, navigation distance/course.
-- One editable starter hull: local cells plus a continuous shared translation.
+- Morrow/Ember moons plus Aster, a 240 m wide voxel planet with nearby chunk streaming.
+- Orbital shipyard, navigation distance/course, original narrow survey-skiff blueprint.
+- One editable hull: local cells plus continuous position, yaw and pitch.
+- Rate-limited assisted steering, powered departure lift, chase/cockpit cameras.
+- World-direction procedural stars that turn with the camera.
 - Boarding, piloting, parking, conservative terrain collision and clear exits.
 - Separate main/solar banks, power switch, shadow-aware chargers, battery blocks.
 - Version-2 browser saves; version-1 saves retained and upgraded on successful load.
@@ -15,7 +18,7 @@ an interim phone-playable implementation; Luanti remains the native engine.
 
 `ship.js` owns hull validation, pose, energy and local-grid commands. `world.js`
 owns static terrain. `renderer.js` uploads the hull only when its geometry changes
-and supplies its position as a uniform; movement does not broadcast/rebuild a
+and supplies position/orientation as uniforms; movement does not broadcast/rebuild a
 voxel structure. A future server needs independent authorization, fixed-step
 simulation, pose/energy deltas, hull revisions and validated construction commands.
 The current browser is solo and is not a trusted online authority.
@@ -23,9 +26,9 @@ The current browser is solo and is not a trusted online authority.
 ## Required next gates, not supplied features
 
 1. Test the published build on actual iPhone and iPad Magic Keyboard hardware.
-2. Regional/procedural streaming before increasing planets/worlds substantially.
+2. Expand bounded planet streaming into regional networking, LOD transitions and a larger sector.
 3. Original modular construction with editable presets, selections and blueprints.
-4. Ship heading/rotation, mass and thruster force model, docking and passengers.
+4. Ship roll, mass and thruster force model, docking and passengers.
 5. Authoritative multiplayer transport and browser/native feasibility decision.
 6. Cooperative discoveries/resources, shared outposts and longer expeditions.
 
@@ -34,16 +37,20 @@ complex machinery. Avoid copying another game's code, assets, branding or maps.
 Shipbuilding/exploration are the genre inspiration, not a claimed physics clone.
 
 Temporary limits: one ship, 512 hull blocks, ±12 local cells, ±950 ship sector,
-two planetoids of radius 32/28, no gravity or orbit simulation. All generated
-terrain is loaded at startup; this is deliberately not an infinite-world design.
+two legacy moons of radius 32/28 and Aster of radius 120; no gravity or orbit
+simulation. Legacy terrain remains resident; Aster collision is procedural and
+its nearby render chunks load with a two-chunk frame budget and evict on leaving.
+Distant planet LODs are visual silhouettes, not replacement gameplay geometry.
+This is bounded sector streaming, not an infinite-world design.
 
 ## Validation
 
-Local Node suite: 16 tests passed, including hull connectivity, translated builds,
+Current local Node suite: 20 tests passed, including hull connectivity, rotated builds,
 undo/redo, terrain collision, solar shadows, powered/unpowered movement, battery
 capacity/save validation, legacy saves and key-only keyboard events. Browser CI
 adds public-UI piloting/power and pointer-lock-unavailable drag tests to the
-existing desktop, phone, landscape and WebKit flows. Inspect cloud results before
+existing desktop, phone, landscape and WebKit flows, camera switching, rotating
+sky screenshots and an actual voyage to streamed Aster. Inspect cloud results before
 claiming browser success. Physical iPad/iPhone performance is still unverified.
 
 ### Cloud evidence (2026-10-09 UTC)
@@ -62,3 +69,25 @@ and the phone-size UI; the arrival screenshot was visually inspected.
 The Pages publish job succeeded and its public build-info reports the tested
 revision. Actual iPhone/iPad Magic Keyboard behavior, thermals and memory pressure
 still require hardware tests. Cloud WebKit is not a certification of iOS Safari.
+
+
+### Flight/sky/planet implementation details
+
+`ship-motion.js` contains shared local/world transforms and rate-limited angular
+steering. The ship follows the desired look direction, with upright stabilization
+(no free roll), distinct acceleration/braking and a four-metre powered lift at
+the orbital berth before cruise. Rotated cube bounds conservatively stop both
+turning and translation at terrain. This can stop a hull slightly early; exact
+OBB collision and a mass/thruster simulation remain future work. Ship save schema
+2 adds yaw/pitch and unfinished departure height; schema 1 loads with zero angles
+and retains custom cells and energy. Existing hulls are never silently replaced;
+use Paste starter ship to adopt the new skiff after backing up a custom design.
+
+`planet-stream.js` maintains a bounded render cache around the player. World.get
+samples Aster's procedural terrain even outside that cache, with saved edits
+taking precedence. Mining exposes adjacent interior voxels. Eviction never
+removes the edit log. Distant LOD spheres sit inside their planet surfaces;
+nearby fragments are discarded to expose voxel detail. Fine LOD transitions,
+spherical gravity, orbital motion, vegetation and large procedural settlements
+are not included. Streaming changes are browser-only; native generation and
+native engine source remain untouched.
