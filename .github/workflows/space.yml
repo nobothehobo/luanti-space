@@ -1,0 +1,51 @@
+name: Luanti Space foundation
+on:
+  push:
+    paths: ['games/luanti_space/**', 'space/**', 'doc/space/**', '.github/workflows/space.yml']
+  pull_request:
+    paths: ['games/luanti_space/**', 'space/**', 'doc/space/**', '.github/workflows/space.yml']
+  workflow_dispatch:
+
+jobs:
+  game:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install test/build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake g++ lua5.1 python3 xvfb xdotool libpng-dev libjpeg-dev libsdl2-dev libgl1-mesa-dev libfreetype-dev libsqlite3-dev libzstd-dev libgmp-dev libzip-dev
+      - name: Lua syntax and behavior tests
+        run: |
+          find games/luanti_space space/tests -name '*.lua' -print0 | xargs -0 -n1 luac5.1 -p
+          lua5.1 space/tests/unit.lua
+      - name: Compile native client and internal server
+        run: |
+          cmake -S . -B build/space-ci -DRUN_IN_PLACE=ON -DBUILD_CLIENT=ON -DBUILD_SERVER=OFF -DBUILD_UNITTESTS=OFF -DENABLE_LTO=OFF -DENABLE_SOUND=OFF -DENABLE_CURL=OFF -DENABLE_GETTEXT=OFF -DENABLE_LEVELDB=OFF -DENABLE_POSTGRESQL=OFF -DENABLE_REDIS=OFF -DENABLE_SPATIAL=OFF -DENABLE_PROMETHEUS=OFF -DENABLE_CURSES=OFF
+          cmake --build build/space-ci -j2
+      - name: Two-client world edits and save/reload
+        run: python3 space/tests/runtime.py --engine bin/luanti
+      - name: Native desktop flight and rendering
+        run: python3 space/tests/desktop.py --engine bin/luanti
+      - name: Package game
+        run: python3 space/tools/package_game.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: luanti-space-game
+          path: build/luanti-space-game.zip
+      - name: Preserve runtime logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: space-test-logs
+          path: build/space-test-*/*.log
+      - name: Preserve desktop evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: space-desktop-evidence
+          path: |
+            build/space-desktop-*/*.log
+            build/space-desktop-*/world/motion.csv
+            build/space-desktop-*/screenshot_*.png

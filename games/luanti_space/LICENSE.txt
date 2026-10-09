@@ -1,0 +1,12 @@
+Luanti Space original Lua source, documentation, configuration and tools:
+SPDX-License-Identifier: LGPL-2.1-or-later
+See ../../LICENSE.txt for the GNU Lesser General Public License terms.
+
+Original generated PNG textures in mods/space_core/textures:
+SPDX-License-Identifier: CC0-1.0
+To the extent possible under law, Luanti Space contributors have waived all
+copyright and related or neighboring rights to these original textures.
+https://creativecommons.org/publicdomain/zero/1.0/
+
+Upstream Luanti engine, builtins, renderer, fonts and other bundled material
+retain their existing licenses and attribution. This file does not relicense them.
