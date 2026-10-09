@@ -46,3 +46,22 @@ The follow-up must pass cloud checks before it is published.
 GitHub Pages requires the owner's one-time publishing-source selection. There
 is no claim that an expected URL is live before successful deployment. The
 browser is local solo and does not join native Luanti servers.
+
+2026-10-09 orbital-opening follow-up: runtime commit `37febdde688c` passed
+17 Node behavior tests and all four browser cases in
+[push run 37881914977](https://github.com/nobothehobo/luanti-space/actions/runs/37881914977).
+Fresh worlds open aboard the starter ship facing Morrow, beyond the old islands.
+The UI tests return to the dock to build, fly to Morrow, explicitly recall the
+ship, and assert that hull cells and both energy banks survive recall. The
+network-only updater page is exercised before the actual-origin outage and
+cached reload. A failing first run exposed offline re-registration after the
+updater; the game now reuses the installed registration and treats background
+update failure as an unavailable connection rather than a game error.
+
+Desktop and WebKit portrait opening screenshots were inspected: the planet is
+centered ahead and the starter hull is visible in the foreground. The official
+Pages deployment succeeded; public build-info reports `37febdde688c`. Existing
+world locations and edits are retained; explicit recall relocates the ship and
+boards it. The original islands remain as legacy build locations. Native engine
+and native game generation are unchanged. Real iPad hardware remains unverified;
+this is still bounded solo planetoid exploration, not large streamed planets.
