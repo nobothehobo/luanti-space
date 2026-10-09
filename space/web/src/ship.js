@@ -108,6 +108,18 @@ export class Ship extends World {
       !NEIGHBORS.some((n) => this.get(p.map((v, i) => v + n[i])).id)
     )
       return "Attach blocks to your hull";
+    if (
+      placement &&
+      this.terrain &&
+      this.collides(
+        this.terrain,
+        this.position,
+        this.yaw,
+        this.pitch,
+        new Map([[key(p), { id: 1 }]]),
+      )
+    )
+      return "Hull would intersect terrain";
     if (!placement) {
       const candidate = new Map(this.cells);
       candidate.delete(key(p));
@@ -160,14 +172,20 @@ export class Ship extends World {
       );
     });
   }
-  collides(terrain, position, yaw = this.yaw, pitch = this.pitch) {
+  collides(
+    terrain,
+    position,
+    yaw = this.yaw,
+    pitch = this.pitch,
+    cells = this.cells,
+  ) {
     const b = basis(yaw, pitch);
     const ext = [0, 1, 2].map(
       (i) =>
         0.5 *
         (Math.abs(b.right[i]) + Math.abs(b.up[i]) + Math.abs(b.forward[i])),
     );
-    for (const k of this.cells.keys()) {
+    for (const k of cells.keys()) {
       const p = rotateVector(k.split(",").map(Number), yaw, pitch).map(
         (v, i) => v + position[i],
       );

@@ -135,6 +135,7 @@ function rotate() {
   message(`Rotated ${settings.rotation * 90}°`);
 }
 function command(action, notify = true) {
+  ship.terrain = world;
   if (ship.piloting) {
     if (notify) message("Exit your ship before building");
     return { ok: false, reason: "Piloting" };
@@ -409,6 +410,7 @@ function frame(time) {
       lastSave = time;
     }
   }
+  ship.terrain = world;
   const editWorld = buildMode === "ship" ? ship : world;
   const target = ship.piloting
     ? null

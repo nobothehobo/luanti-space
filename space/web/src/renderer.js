@@ -172,7 +172,7 @@ export class Renderer {
       void main(){
         vec2 ndc=vUV*2.-1.;
         vec3 d=normalize(uForward + uRight*ndc.x*uAspect*.577350269 + uUp*ndc.y*.577350269);
-        vec3 c=mix(vec3(.025,.05,.085),vec3(.006,.012,.032),d.y*.5+.5.);
+        vec3 c=mix(vec3(.025,.05,.085),vec3(.006,.012,.032),d.y*.5+.5);
         float halo=pow(max(0.,dot(d,normalize(vec3(.3,.5,-.8)))),24.);
         vec2 grid=vec2((atan(d.x,d.z)/6.283185307+.5)*720.,(asin(d.y)/3.141592654+.5)*360.);
         vec2 cell=floor(grid);

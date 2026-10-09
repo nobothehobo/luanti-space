@@ -45,7 +45,7 @@ This is bounded sector streaming, not an infinite-world design.
 
 ## Validation
 
-Current local Node suite: 20 tests passed, including hull connectivity, rotated builds,
+Current local Node suite: 21 tests passed, including hull connectivity, rotated builds,
 undo/redo, terrain collision, solar shadows, powered/unpowered movement, battery
 capacity/save validation, legacy saves and key-only keyboard events. Browser CI
 adds public-UI piloting/power and pointer-lock-unavailable drag tests to the

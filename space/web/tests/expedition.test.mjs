@@ -284,3 +284,29 @@ test("large planet is solid and editable before render streaming, chunks evict w
   assert.equal(restoredWorld.get(surface).id, 0);
   assert.equal(restoredWorld.get(large.center).id, 2);
 });
+
+test("rotated hull preview and commands reject intersections with terrain", async () => {
+  const { rotateVector } = await import("../src/ship-motion.js");
+  const s = new Ship(),
+    w = empty();
+  s.yaw = 0.7;
+  s.pitch = 0.2;
+  s.terrain = w;
+  const p = [3, 0, -1],
+    view = {
+      feet: s.global([3, 3, -1]),
+      eye: s.global([3, 4.625, -1]),
+      direction: rotateVector([0, -1, 0], s.yaw, s.pitch),
+    };
+  const g = s.global(p).map(Math.round);
+  w.set(g, { id: 2, rotation: 0 }, false);
+  assert.equal(
+    s.validate(p, s.pose(view), true),
+    "Hull would intersect terrain",
+  );
+  const before = s.cells.size;
+  const result = s.command("place", view, settings, 1);
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, "Hull would intersect terrain");
+  assert.equal(s.cells.size, before);
+});
