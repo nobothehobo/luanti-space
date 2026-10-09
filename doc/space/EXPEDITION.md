@@ -45,3 +45,20 @@ capacity/save validation, legacy saves and key-only keyboard events. Browser CI
 adds public-UI piloting/power and pointer-lock-unavailable drag tests to the
 existing desktop, phone, landscape and WebKit flows. Inspect cloud results before
 claiming browser success. Physical iPad/iPhone performance is still unverified.
+
+### Cloud evidence (2026-10-09 UTC)
+
+Build `c6feee478298` passed both the push and PR browser suites:
+[published push run](https://github.com/nobothehobo/luanti-space/actions/runs/37874185264)
+and [PR run](https://github.com/nobothehobo/luanti-space/actions/runs/37874189313).
+All 16 unit tests and desktop, portrait-phone, landscape-phone and WebKit-phone
+flows passed. The desktop test charts a course through the menu, boards via V,
+flies to Morrow using a short boost and cruise, exits, exports a backup and then
+reloads with the real HTTP origin unavailable. It asserts identical hull cells,
+ship pose, pilot state and battery banks after offline reload. There is no test
+teleport or writable debug shortcut. Screenshot evidence includes the arrival
+and the phone-size UI; the arrival screenshot was visually inspected.
+
+The Pages publish job succeeded and its public build-info reports the tested
+revision. Actual iPhone/iPad Magic Keyboard behavior, thermals and memory pressure
+still require hardware tests. Cloud WebKit is not a certification of iOS Safari.

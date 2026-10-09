@@ -46,3 +46,16 @@ publishing; see `space/web/README.md`. This does not replace the required native
 iOS port or demonstrate native/browser cross-play. Shared `world_spec.json`
 prevents diverging initial terrain, but physics/rendering remain distinct.
 Prioritize real-device evaluation of this surface before speculative expansion.
+
+The user's direction is now **planetary exploration with customizable ships**,
+not a garden as the finished game identity. The browser First Expedition supplies
+two bounded planetoids, an editable/piloted starter hull, main/solar power banks,
+course navigation and improved keyboard/trackpad adapters. Read `EXPEDITION.md`
+for tested behavior and limits. Native Luanti parity is not implied.
+
+Next browser gates: physical-device evaluation; streamed larger planets; modular
+construction/personal blueprints; ship orientation/mass/thrusters; independently
+validated authoritative multiplayer; cooperative discoveries, resources and
+shared outposts. Complex ship systems should be optional depth, not mandatory
+maintenance chores. The fixed-sector/one-hull limits are prototype safeguards,
+not the intended ceiling for the eventual game.
